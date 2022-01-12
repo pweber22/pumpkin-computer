@@ -14,21 +14,24 @@ float pumpkin_cd=1.00;  //pumpkin coefficient of drag
 float pumpkin_mass=0.830; //kg
 float pumpkin_circumference=0.40; //meters
 float pumpkin_cross_section=0.1;
-int wind_speed_mph=10;
-int wind_dir=30;
-float targetLat=41.92699;
-float targetLon=-91.42596;
-float targetAlt_ft=800;
-int bearing=90; //bearing of the flight path over the target
+int wind_speed_mph=0;
+int wind_dir=0;
+float targetLat=41.927338;
+float targetLon=-91.425406;
+float targetAlt_ft=860;
+int bearing=309; //bearing of the flight path over the target
+
+float bearingRad;
+float windX;
+float windY;
 
 float mPerLat;
 float mPerLon;
 
 float air_density=1.225;  //kg/m^3
-int plane_air_speed_mph=65; //plane air speed in mph
-int plane_ground_speed_mph=50;  //plane ground speed in mph
+int plane_ground_speed_mph;  //plane ground speed in mph
 float plane_gnd_speed;
-int drop_height_ft=300;  //drop height in feet
+int drop_height_ft;  //drop height in feet
 int head_wind;
 int cross_wind;
 
@@ -93,19 +96,19 @@ byte right_track[8]={
 
 
 void dropSim(){
-  setLeds(yellow_led);
+  setLeds(yellow_led || red_led);
   plane_gnd_speed=plane_ground_speed_mph*0.44704;
   float drop_height=drop_height_ft*0.3048;
   float plane_air_speed=plane_gnd_speed+head_wind;
-  
+  //initialize sim variables, orient plane in local coordinate system
   float sim_time=0.0;
   float pumpkin_x=0.0;
   float pumpkin_y=0.0;
   float pumpkin_z=drop_height;
-  float pumpkin_x_gnd_speed=plane_gnd_speed;
-  float pumpkin_y_gnd_speed=0.0;
-  float pumpkin_y_air_speed=plane_air_speed;
-  float pumpkin_x_air_speed=cross_wind;
+  float pumpkin_x_gnd_speed=sin(bearingRad)*plane_gnd_speed;
+  float pumpkin_y_gnd_speed=cos(bearingRad)*plane_gnd_speed;
+  float pumpkin_y_air_speed=pumpkin_y_gnd_speed+windY;
+  float pumpkin_x_air_speed=pumpkin_x_gnd_speed+windX;
   float pumpkin_vertical_speed=0.0;
 
   //float pumpkin_cross_section=pi*pow(pumpkin_circumference/(2*pi),2);
@@ -144,7 +147,10 @@ void setup() {
   float wind_speed=wind_speed_mph*0.44704;
   head_wind=cos((wind_dir-bearing)*pi/180)*wind_speed;
   cross_wind=-sin((wind_dir-bearing)*pi/180)*wind_speed;
+  windX=sin(wind_dir*pi/180)*wind_speed;
+  windY=cos(wind_dir*pi/180)*wind_speed;
 
+  bearingRad = bearing*pi/180;
   float radLat=targetLat*pi/180;
   mPerLat = 111132.92-559.82*cos(2*radLat)+1.175*cos(4*radLat)-0.0023*cos(6*radLat);
   mPerLon = 111412.84*cos(radLat)-93.5*cos(3*radLat)+0.118*cos(5*radLat);
@@ -175,10 +181,12 @@ void setup() {
 }
 
 void loop() {
-  char c;
-  while(!gps.newNMEAreceived())
-    c=gps.read();
-  gps.parse(gps.lastNMEA());
+  for(int i=0; i<2; i++){
+    char c;
+    while(!gps.newNMEAreceived())
+      c=gps.read();
+    gps.parse(gps.lastNMEA());
+  }
 
   if(state==0){
     if(gps.fix)
@@ -201,13 +209,11 @@ void loop() {
     //update variables with new gps data
     plane_ground_speed_mph=(gps.speed*1.151);
     printSpeed(plane_ground_speed_mph);
-    printx(dropY*3.28);
-    drop_height_ft=(gps.altitude-targetAlt_ft);
+    drop_height_ft=(gps.altitude*3.28-targetAlt_ft);
 
     //run simulation and update drop coordinates
     dropSim();
     printAGL(drop_height_ft);
-    printx(-dropY*3.28);
     printHeading((int)gps.angle);
     printTargetBearing(bearing);
 
@@ -216,18 +222,27 @@ void loop() {
     float b=dropY-m*dropX;
     
     //calculate point along planned flight path
-    float pathX=(m*(((1/m)*planeX+planeY)-b))/pow(m,2)+1;
+    float pathX=(m*(((1/m)*planeX+planeY)-b))/sq(m)+1;
     float pathY=m*pathX+b;
 
     //calculate distance to flight path
-    int err=(int)sqrt(pow(pathX-planeX,2)+pow(pathY-planeY,2));
-    if(((planeX-pathX)*(dropX-pathX)+(planeY-pathY)*(dropY-pathY))<0)
-      err*=-1;
+    int err=(int)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
+    if(bearing <180){
+      if(planeY>m*planeX+b)
+        err*=-1;
+    }
+    else{
+      if(planeY<m*planeX+b)
+        err*=-1;
+    }
     printTrack(err);
+    printx(err);
 
     //calculate time to drop
     float dropDistance=sqrt(sq(pathX-dropX)+sq(pathY-dropY));
-    time_to_drop=dropDistance/plane_gnd_speed;
+    if(plane_gnd_speed>1)
+      time_to_drop=dropDistance/plane_gnd_speed;
+    else time_to_drop=599;
     printTime(time_to_drop);
     
     if(!gps.fix)
