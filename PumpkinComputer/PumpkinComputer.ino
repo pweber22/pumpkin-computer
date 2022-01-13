@@ -196,13 +196,17 @@ void loop() {
 
   if(state==1){
 
-    //get plane coordinates in local xy coordinates
+    //get plane coordinates in decimal degrees
     char buf[11];
     float plane_lat=(int)gps.latitude/100;
     plane_lat+=fmod(gps.latitude, 100)/60;
     float plane_lon=(int)gps.longitude/100;
     plane_lon+=fmod(gps.longitude, 100)/60;
-    
+
+    if(gps.lon == "W")
+      plane_lon = -plane_lon;
+
+    //get plane coordinates in local xy system
     float planeX=mPerLon*(plane_lon-targetLon);
     float planeY=mPerLat*(plane_lat-targetLat);
 
