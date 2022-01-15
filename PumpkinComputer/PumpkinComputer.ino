@@ -144,11 +144,15 @@ void dropSim(){
 
 
 void setup() {
+  Serial.begin(115200);
+  Serial.println("pumpkin-computer Debug edition!");
   float wind_speed=wind_speed_mph*0.44704;
   head_wind=cos((wind_dir-bearing)*pi/180)*wind_speed;
   cross_wind=-sin((wind_dir-bearing)*pi/180)*wind_speed;
   windX=sin(wind_dir*pi/180)*wind_speed;
   windY=cos(wind_dir*pi/180)*wind_speed;
+  Serial.print("windX: "); Serial.println(windX);
+  Serial.print("windY: "); Serial.println(windY);
 
   bearingRad = bearing*pi/180;
   float radLat=targetLat*pi/180;
@@ -203,17 +207,23 @@ void loop() {
     float plane_lon=(int)gps.longitude/100;
     plane_lon+=fmod(gps.longitude, 100)/60;
 
-    if(gps.lon == "W")
+    if(gps.lon == 'W')
       plane_lon = -plane_lon;
 
+    Serial.print("plane_lat: "); Serial.println(plane_lat, 6);
+    Serial.print("plane_lon: "); Serial.println(plane_lon, 6);
+    
     //get plane coordinates in local xy system
     float planeX=mPerLon*(plane_lon-targetLon);
     float planeY=mPerLat*(plane_lat-targetLat);
+    Serial.print("planeX: "); Serial.println(planeX);
+    Serial.print("planeY: "); Serial.println(planeY);
 
     //update variables with new gps data
     plane_ground_speed_mph=(gps.speed*1.151);
     printSpeed(plane_ground_speed_mph);
     drop_height_ft=(gps.altitude*3.28-targetAlt_ft);
+    Serial.print("gps.altitude: "); Serial.println(gps.altitude);
 
     //run simulation and update drop coordinates
     dropSim();
@@ -240,7 +250,7 @@ void loop() {
         err*=-1;
     }
     printTrack(err);
-    printx(err);
+    printRange(err);
 
     //calculate time to drop
     float dropDistance=sqrt(sq(pathX-dropX)+sq(pathY-dropY));
@@ -277,7 +287,7 @@ void printTime(int countdown){
   lcd.print(str);
 }
 
-void printx(int x){
+void printRange(int x){
   char str[4];
   sprintf(str, "%3d", x);
   lcd.setCursor(9,0);
@@ -307,7 +317,7 @@ void printAGL(int AGL){
 
 void printTrack(int error){
   byte track_display[9]={0,0,0,0,'I',0,0,0,0};
-  error/=15;
+  error/=5;
   if(abs(error)<1)
     track_display[4]=0x02;
   else{
