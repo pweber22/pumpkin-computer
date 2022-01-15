@@ -8,18 +8,33 @@
 #define yellow_led 0b11111011
 #define time_zone 18
 
-int state;
+#define pumpkin_cd 1.00 // coefficient of drag of the pumpkin
+#define pumpkin_mass 0.830  // mass of the pumpkin in kg
+#define pumpkin_circumference 0.40  // circumference of the pumpkin in meters
 
-float pumpkin_cd=1.00;  //pumpkin coefficient of drag
-float pumpkin_mass=0.830; //kg
-float pumpkin_circumference=0.40; //meters
-float pumpkin_cross_section=0.1;
-int wind_speed_mph=0;
-int wind_dir=0;
-float targetLat=41.927338;
-float targetLon=-91.425406;
-float targetAlt_ft=860;
-int bearing=309; //bearing of the flight path over the target
+#define wind_speed_mph 0  // wind speed in mph
+#define wind_dir 0  // wind direction degrees
+#define air_density 1.225 // air density in kg/m^3
+
+#define targetLat 41.927015 // target latitude in decimal degrees
+#define targetLon -91.425713  // target longitude in decimal degrees
+#define targetAlt_ft 885  // target altitude in feet MSL
+#define bearing 343 // bearing of the flight path over the target
+
+//float pumpkin_cd=1.00;  //pumpkin coefficient of drag
+//float pumpkin_mass=0.830; //kg
+//float pumpkin_circumference=0.40; //meters
+
+//int wind_speed_mph=0;
+//int wind_dir=0;
+//float air_density=1.225;  //kg/m^3
+
+//float targetLat=41.927015;
+//float targetLon=-91.425713;
+//float targetAlt_ft=885;
+//int bearing=343; //bearing of the flight path over the target
+
+int state;
 
 float bearingRad;
 float windX;
@@ -28,12 +43,10 @@ float windY;
 float mPerLat;
 float mPerLon;
 
-float air_density=1.225;  //kg/m^3
-int plane_ground_speed_mph;  //plane ground speed in mph
+float plane_ground_speed_mph;
 float plane_gnd_speed;
-int drop_height_ft;  //drop height in feet
-int head_wind;
-int cross_wind;
+int drop_height_ft;
+float pumpkin_cross_section;
 
 float time_step=0.01;  //sim time step
 
@@ -42,10 +55,10 @@ float pumpkin_air_time;
 float dropX;
 float dropY;
 
-float g=-9.81;
-float pi=3.14159265;
+#define g -9.81 // acc from gravity
+#define pi 3.14159265 // pi
 
-long start_time;
+//long start_time;
 int time_to_drop;
 bool buzzer_on;
 
@@ -96,10 +109,10 @@ byte right_track[8]={
 
 
 void dropSim(){
-  setLeds(yellow_led || red_led);
+  setLeds(yellow_led & green_led);
   plane_gnd_speed=plane_ground_speed_mph*0.44704;
   float drop_height=drop_height_ft*0.3048;
-  float plane_air_speed=plane_gnd_speed+head_wind;
+  
   //initialize sim variables, orient plane in local coordinate system
   float sim_time=0.0;
   float pumpkin_x=0.0;
@@ -128,13 +141,13 @@ void dropSim(){
     drag_y=pumpkin_cd*pumpkin_cross_section*air_density*pow(pumpkin_y_air_speed,2)/2;
     accel_y=drag_y/pumpkin_mass;
     pumpkin_y_gnd_speed-=accel_y*time_step;
-    pumpkin_y_air_speed=pumpkin_y_gnd_speed+head_wind;
+    pumpkin_y_air_speed=pumpkin_y_gnd_speed+windY;
     pumpkin_y+=pumpkin_y_gnd_speed*time_step;
 
     drag_x=pumpkin_cd*pumpkin_cross_section*air_density*pow(pumpkin_x_air_speed,2)/2;
     pumpkin_x_gnd_speed+=(drag_x/pumpkin_mass)*time_step;
     pumpkin_x+=pumpkin_x_gnd_speed*time_step;
-    pumpkin_x_air_speed=cross_wind-pumpkin_x_gnd_speed;
+    pumpkin_x_air_speed=pumpkin_x_gnd_speed-windX;
   }
   pumpkin_air_time=sim_time;
   dropX=-pumpkin_x;
@@ -144,25 +157,30 @@ void dropSim(){
 
 
 void setup() {
+  setLeds(red_led & yellow_led & green_led);
+  tone(BUZZER,1500);
   Serial.begin(115200);
   Serial.println("pumpkin-computer Debug edition!");
+
+  // configure wind, convert to m/s and get x&y components
   float wind_speed=wind_speed_mph*0.44704;
-  head_wind=cos((wind_dir-bearing)*pi/180)*wind_speed;
-  cross_wind=-sin((wind_dir-bearing)*pi/180)*wind_speed;
   windX=sin(wind_dir*pi/180)*wind_speed;
   windY=cos(wind_dir*pi/180)*wind_speed;
   Serial.print("windX: "); Serial.println(windX);
   Serial.print("windY: "); Serial.println(windY);
 
+  // calculate meters per degree latitude and longitude at target location
   bearingRad = bearing*pi/180;
   float radLat=targetLat*pi/180;
   mPerLat = 111132.92-559.82*cos(2*radLat)+1.175*cos(4*radLat)-0.0023*cos(6*radLat);
   mPerLon = 111412.84*cos(radLat)-93.5*cos(3*radLat)+0.118*cos(5*radLat);
 
+  // start gps communication
   gps.begin(0x10);
   gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   gps.sendCommand(PMTK_SET_NMEA_UPDATE_2HZ);
-  
+
+  // initialize lcd and set custom characters
   lcd.init();
   lcd.backlight();
   lcd.createChar(0, blank);
@@ -170,14 +188,7 @@ void setup() {
   lcd.createChar(2, on_target);
   lcd.createChar(3, left_track);
   lcd.createChar(4, right_track);
-
-  start_time=millis();
   
-  setLeds(red_led & yellow_led & green_led);
-  for(int i=0; i<4; i++){
-    tone(BUZZER,1500,50);
-    delay(100);
-  }
   delay(200);
   noTone(BUZZER);
   buzzer_on=false;
@@ -212,26 +223,22 @@ void loop() {
 
     Serial.print("plane_lat: "); Serial.println(plane_lat, 6);
     Serial.print("plane_lon: "); Serial.println(plane_lon, 6);
-    
+
     //get plane coordinates in local xy system
     float planeX=mPerLon*(plane_lon-targetLon);
     float planeY=mPerLat*(plane_lat-targetLat);
     Serial.print("planeX: "); Serial.println(planeX);
     Serial.print("planeY: "); Serial.println(planeY);
 
-    //update variables with new gps data
+    //update ground speed and agl height with new gps data
     plane_ground_speed_mph=(gps.speed*1.151);
-    printSpeed(plane_ground_speed_mph);
     drop_height_ft=(gps.altitude*3.28-targetAlt_ft);
     Serial.print("gps.altitude: "); Serial.println(gps.altitude);
-
+    
     //run simulation and update drop coordinates
     dropSim();
-    printAGL(drop_height_ft);
-    printHeading((int)gps.angle);
-    printTargetBearing(bearing);
 
-    //calculate flight path
+    //calculate flight path (y=mx+b in local coordinates, target is origin)
     float m=tan(-(bearing+90)*pi/180);
     float b=dropY-m*dropX;
     
@@ -249,15 +256,25 @@ void loop() {
       if(planeY<m*planeX+b)
         err*=-1;
     }
+    
     printTrack(err);
     printRange(err);
 
     //calculate time to drop
-    float dropDistance=sqrt(sq(pathX-dropX)+sq(pathY-dropY));
+    float dropDistance=sqrt(sq(planeX-dropX)+sq(planeY-dropY));
     if(plane_gnd_speed>1)
       time_to_drop=dropDistance/plane_gnd_speed;
     else time_to_drop=599;
     printTime(time_to_drop);
+
+    // send new data to lcd
+    printHeading((int)gps.angle);
+    printTargetBearing(bearing);
+    printTrack(err);
+    printRange(err);
+    printTime(time_to_drop);
+    printAGL(drop_height_ft);
+    printSpeed(plane_ground_speed_mph);
     
     if(!gps.fix)
       setState_aqi();
@@ -294,9 +311,9 @@ void printRange(int x){
   lcd.print(str);
 }
 
-void printTargetBearing(int bearing){
+void printTargetBearing(int b){
   char str[4];
-  sprintf(str, "%03d", bearing);
+  sprintf(str, "%03d", b);
   lcd.setCursor(13,0);
   lcd.print(str);
 }
@@ -356,6 +373,7 @@ void setState_aqi(){
 }
 
 void setState_run(){
+  Serial.println("GPS AOS");
   setLeds(green_led);
   state=1;
   lcd.clear();
