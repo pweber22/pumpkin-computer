@@ -58,11 +58,10 @@ float dropY;
 #define g -9.81 // acc from gravity
 #define pi 3.14159265 // pi
 
-//long start_time;
 int time_to_drop;
 bool buzzer_on;
 
-LiquidCrystal_I2C lcd(0x27,16,2); //init lcd with address, columns, and rows
+LiquidCrystal_I2C lcd(0x27,16,2); //create lcd with address, columns, and rows
 Adafruit_GPS gps(&Wire);
 
 byte plane_char[8]={
@@ -129,7 +128,6 @@ void dropSim(){
   float drag_z;
   float drag_y;
   float drag_x;
-  float accel_y;
   
   while(pumpkin_z>0.0){
     sim_time+=time_step;
@@ -139,15 +137,14 @@ void dropSim(){
     pumpkin_z+=pumpkin_vertical_speed*time_step;
 
     drag_y=pumpkin_cd*pumpkin_cross_section*air_density*pow(pumpkin_y_air_speed,2)/2;
-    accel_y=drag_y/pumpkin_mass;
-    pumpkin_y_gnd_speed-=accel_y*time_step;
-    pumpkin_y_air_speed=pumpkin_y_gnd_speed+windY;
+    pumpkin_y_gnd_speed-=(drag_y/pumpkin_mass)*time_step;
     pumpkin_y+=pumpkin_y_gnd_speed*time_step;
+    pumpkin_y_air_speed=pumpkin_y_gnd_speed+windY;
 
     drag_x=pumpkin_cd*pumpkin_cross_section*air_density*pow(pumpkin_x_air_speed,2)/2;
     pumpkin_x_gnd_speed+=(drag_x/pumpkin_mass)*time_step;
     pumpkin_x+=pumpkin_x_gnd_speed*time_step;
-    pumpkin_x_air_speed=pumpkin_x_gnd_speed-windX;
+    pumpkin_x_air_speed=pumpkin_x_gnd_speed+windX;
   }
   pumpkin_air_time=sim_time;
   dropX=-pumpkin_x;
