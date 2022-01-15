@@ -154,6 +154,7 @@ void loop() {
     //get plane coordinates in local xy system
     float planeX=mPerLon*(plane_lon-targetLon);
     float planeY=mPerLat*(plane_lat-targetLat);
+    
     //update ground speed and agl height with new gps data
     plane_ground_speed_mph=(gps.speed*1.151);
     drop_height_ft=(gps.altitude*3.28-targetAlt_ft);
@@ -179,9 +180,6 @@ void loop() {
       if(planeY<m*planeX+b)
         err*=-1;
     }
-    
-    printTrack(err);
-    printRange(err);
 
     //calculate time to drop
     float dropDistance=sqrt(sq(planeX-dropX)+sq(planeY-dropY));
@@ -194,7 +192,7 @@ void loop() {
     printHeading((int)gps.angle);
     printTargetBearing(bearing);
     printTrack(err);
-    printRange(err);
+    printRange(dropDistance);
     printTime(time_to_drop);
     printAGL(drop_height_ft);
     printSpeed(plane_ground_speed_mph);
