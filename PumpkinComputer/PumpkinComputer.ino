@@ -94,10 +94,13 @@ byte right_track[8]={
 void setup() {
   setLeds(red_led & yellow_led & green_led);
   tone(BUZZER,1500);
+  
   // configure wind, convert to m/s and get x&y components
   float wind_speed=wind_speed_mph*0.44704;
   windX=sin(wind_dir*pi/180)*wind_speed;
   windY=cos(wind_dir*pi/180)*wind_speed;
+
+  pumpkin_cross_section = pi*sq(pumpkin_circumference/(2*pi));
 
   // calculate meters per degree latitude and longitude at target location
   bearingRad = bearing*pi/180;
