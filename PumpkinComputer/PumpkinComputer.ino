@@ -8,18 +8,18 @@
 #define yellow_led 0b11111011
 #define time_zone 18
 
-#define pumpkin_cd 1.00 // coefficient of drag of the pumpkin
-#define pumpkin_mass 0.830  // mass of the pumpkin in kg
-#define pumpkin_circumference 0.40  // circumference of the pumpkin in meters
+const float pumpkin_cd=1.00; // coefficient of drag of the pumpkin
+const float pumpkin_mass=0.830;  // mass of the pumpkin in kg
+const float pumpkin_circumference=0.40;  // circumference of the pumpkin in meters
 
-#define wind_speed_mph 0  // wind speed in mph
-#define wind_dir 0  // wind direction degrees
-#define air_density 1.225 // air density in kg/m^3
+const int wind_speed_mph=0;  // wind speed in mph
+const int wind_dir=0;  // wind direction degrees
+const float air_density=1.225; // air density in kg/m^3
 
 #define targetLat 41.927015 // target latitude in decimal degrees
 #define targetLon -91.425713  // target longitude in decimal degrees
-#define targetAlt_ft 885  // target altitude in feet MSL
-#define bearing 343 // bearing of the flight path over the target
+const int targetAlt_ft=885;  // target altitude in feet MSL
+const int bearing=343; // bearing of the flight path over the target
 
 int state;
 
@@ -36,8 +36,6 @@ int drop_height_ft;
 float pumpkin_cross_section;
 
 float time_step=0.01;  //sim time step
-
-float pumpkin_air_time;
 
 float dropX;
 float dropY;
@@ -92,51 +90,6 @@ byte right_track[8]={
   0b01100,
   0b01000,
   0b00000};
-
-
-void dropSim(){
-  setLeds(yellow_led & green_led);
-  plane_gnd_speed=plane_ground_speed_mph*0.44704;
-  float drop_height=drop_height_ft*0.3048;
-  
-  //initialize sim variables, orient plane in local coordinate system
-  float sim_time=0.0;
-  float pumpkin_x=0.0;
-  float pumpkin_y=0.0;
-  float pumpkin_z=drop_height;
-  float pumpkin_x_gnd_speed=sin(bearingRad)*plane_gnd_speed;
-  float pumpkin_y_gnd_speed=cos(bearingRad)*plane_gnd_speed;
-  float pumpkin_y_air_speed=pumpkin_y_gnd_speed+windY;
-  float pumpkin_x_air_speed=pumpkin_x_gnd_speed+windX;
-  float pumpkin_vertical_speed=0.0;
-
-  float drag_z;
-  float drag_y;
-  float drag_x;
-  
-  while(pumpkin_z>0.0){
-    sim_time+=time_step;
-
-    drag_z=pumpkin_cd*pumpkin_cross_section*air_density*pow(pumpkin_vertical_speed,2)/2;
-    pumpkin_vertical_speed+=(g*time_step)+(drag_z/pumpkin_mass)*time_step;
-    pumpkin_z+=pumpkin_vertical_speed*time_step;
-
-    drag_y=pumpkin_cd*pumpkin_cross_section*air_density*pow(pumpkin_y_air_speed,2)/2;
-    pumpkin_y_gnd_speed-=(drag_y/pumpkin_mass)*time_step;
-    pumpkin_y+=pumpkin_y_gnd_speed*time_step;
-    pumpkin_y_air_speed=pumpkin_y_gnd_speed+windY;
-
-    drag_x=pumpkin_cd*pumpkin_cross_section*air_density*pow(pumpkin_x_air_speed,2)/2;
-    pumpkin_x_gnd_speed+=(drag_x/pumpkin_mass)*time_step;
-    pumpkin_x+=pumpkin_x_gnd_speed*time_step;
-    pumpkin_x_air_speed=pumpkin_x_gnd_speed+windX;
-  }
-  pumpkin_air_time=sim_time;
-  dropX=-pumpkin_x;
-  dropY=-pumpkin_y;
-  setLeds(green_led);
-}
-
 
 void setup() {
   setLeds(red_led & yellow_led & green_led);
@@ -333,6 +286,48 @@ void printTrack(int error){
   lcd.setCursor(4,1);
   for(int i=0; i<9; i++)
     lcd.write(track_display[i]);
+}
+
+void dropSim(){
+  setLeds(yellow_led & green_led);
+  plane_gnd_speed=plane_ground_speed_mph*0.44704;
+  float drop_height=drop_height_ft*0.3048;
+  
+  //initialize sim variables, orient plane in local coordinate system
+  float sim_time=0.0;
+  float pumpkin_x=0.0;
+  float pumpkin_y=0.0;
+  float pumpkin_z=drop_height;
+  float pumpkin_x_gnd_speed=sin(bearingRad)*plane_gnd_speed;
+  float pumpkin_y_gnd_speed=cos(bearingRad)*plane_gnd_speed;
+  float pumpkin_y_air_speed=pumpkin_y_gnd_speed+windY;
+  float pumpkin_x_air_speed=pumpkin_x_gnd_speed+windX;
+  float pumpkin_vertical_speed=0.0;
+
+  float drag_z;
+  float drag_y;
+  float drag_x;
+  
+  while(pumpkin_z>0.0){
+    sim_time+=time_step;
+
+    drag_z=pumpkin_cd*pumpkin_cross_section*air_density*pow(pumpkin_vertical_speed,2)/2;
+    pumpkin_vertical_speed+=(g*time_step)+(drag_z/pumpkin_mass)*time_step;
+    pumpkin_z+=pumpkin_vertical_speed*time_step;
+
+    drag_y=pumpkin_cd*pumpkin_cross_section*air_density*pow(pumpkin_y_air_speed,2)/2;
+    pumpkin_y_gnd_speed-=(drag_y/pumpkin_mass)*time_step;
+    pumpkin_y+=pumpkin_y_gnd_speed*time_step;
+    pumpkin_y_air_speed=pumpkin_y_gnd_speed+windY;
+
+    drag_x=pumpkin_cd*pumpkin_cross_section*air_density*pow(pumpkin_x_air_speed,2)/2;
+    pumpkin_x_gnd_speed+=(drag_x/pumpkin_mass)*time_step;
+    pumpkin_x+=pumpkin_x_gnd_speed*time_step;
+    pumpkin_x_air_speed=pumpkin_x_gnd_speed+windX;
+  }
+  dropX=-pumpkin_x;
+  dropY=-pumpkin_y;
+  setLeds(green_led);
 }
 
 void setLeds(byte lights){
