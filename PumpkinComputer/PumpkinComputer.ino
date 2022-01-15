@@ -21,19 +21,6 @@
 #define targetAlt_ft 885  // target altitude in feet MSL
 #define bearing 343 // bearing of the flight path over the target
 
-//float pumpkin_cd=1.00;  //pumpkin coefficient of drag
-//float pumpkin_mass=0.830; //kg
-//float pumpkin_circumference=0.40; //meters
-
-//int wind_speed_mph=0;
-//int wind_dir=0;
-//float air_density=1.225;  //kg/m^3
-
-//float targetLat=41.927015;
-//float targetLon=-91.425713;
-//float targetAlt_ft=885;
-//int bearing=343; //bearing of the flight path over the target
-
 int state;
 
 float bearingRad;
@@ -122,8 +109,6 @@ void dropSim(){
   float pumpkin_y_air_speed=pumpkin_y_gnd_speed+windY;
   float pumpkin_x_air_speed=pumpkin_x_gnd_speed+windX;
   float pumpkin_vertical_speed=0.0;
-
-  //float pumpkin_cross_section=pi*pow(pumpkin_circumference/(2*pi),2);
 
   float drag_z;
   float drag_y;
