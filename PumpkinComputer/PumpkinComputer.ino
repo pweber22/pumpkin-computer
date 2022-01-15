@@ -94,15 +94,10 @@ byte right_track[8]={
 void setup() {
   setLeds(red_led & yellow_led & green_led);
   tone(BUZZER,1500);
-  Serial.begin(115200);
-  Serial.println("pumpkin-computer Debug edition!");
-
   // configure wind, convert to m/s and get x&y components
   float wind_speed=wind_speed_mph*0.44704;
   windX=sin(wind_dir*pi/180)*wind_speed;
   windY=cos(wind_dir*pi/180)*wind_speed;
-  Serial.print("windX: "); Serial.println(windX);
-  Serial.print("windY: "); Serial.println(windY);
 
   // calculate meters per degree latitude and longitude at target location
   bearingRad = bearing*pi/180;
@@ -156,19 +151,12 @@ void loop() {
     if(gps.lon == 'W')
       plane_lon = -plane_lon;
 
-    Serial.print("plane_lat: "); Serial.println(plane_lat, 6);
-    Serial.print("plane_lon: "); Serial.println(plane_lon, 6);
-
     //get plane coordinates in local xy system
     float planeX=mPerLon*(plane_lon-targetLon);
     float planeY=mPerLat*(plane_lat-targetLat);
-    Serial.print("planeX: "); Serial.println(planeX);
-    Serial.print("planeY: "); Serial.println(planeY);
-
     //update ground speed and agl height with new gps data
     plane_ground_speed_mph=(gps.speed*1.151);
     drop_height_ft=(gps.altitude*3.28-targetAlt_ft);
-    Serial.print("gps.altitude: "); Serial.println(gps.altitude);
     
     //run simulation and update drop coordinates
     dropSim();
@@ -350,7 +338,6 @@ void setState_aqi(){
 }
 
 void setState_run(){
-  Serial.println("GPS AOS");
   setLeds(green_led);
   state=1;
   lcd.clear();
