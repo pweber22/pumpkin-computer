@@ -202,6 +202,7 @@ void loop() {
     
     if(!gps.fix)
       setState_aqi();
+      
   }
 }
 
