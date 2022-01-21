@@ -95,6 +95,10 @@ void setup() {
   setLeds(red_led & yellow_led & green_led);
   tone(BUZZER,1500);
   
+  for(int i=0;i<8;i++){
+	pinMode(i,INPUT_PULLUP);
+  }
+  
   // configure wind, convert to m/s and get x&y components
   float wind_speed=wind_speed_mph*0.44704;
   windX=sin(wind_dir*pi/180)*wind_speed;
@@ -344,4 +348,17 @@ void setState_run(){
   state=1;
   lcd.clear();
   tone(BUZZER, 2000, 200);
+}
+
+void getSetting(){
+	byte upper=0;
+	for(int i=0; i<4; i++){
+		upper+=digitalRead(i);
+		upper=upper<<1;
+	}
+	byte lower=0;
+	for(int i=4; i<8; i++){
+		lower+=digitalRead(i);
+		lower=lower<<1;
+	}
 }
