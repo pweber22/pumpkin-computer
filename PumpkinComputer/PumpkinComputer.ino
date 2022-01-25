@@ -1,25 +1,25 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_GPS.h>
-#define BUZZER 3
+#define BUZZER 9
 #define leds 0x20
 #define green_led 0b11111110
-#define red_led 0b11111101
-#define yellow_led 0b11111011
+#define yellow_led 0b11111101
+#define red_led 0b11111011
 #define time_zone 18
 
-const float pumpkin_cd=1.00; // coefficient of drag of the pumpkin
-const float pumpkin_mass=0.830;  // mass of the pumpkin in kg
-const float pumpkin_circumference=0.40;  // circumference of the pumpkin in meters
+float pumpkin_cd=1.00; // coefficient of drag of the pumpkin
+float pumpkin_mass=0.830;  // mass of the pumpkin in kg
+float pumpkin_circumference=0.40;  // circumference of the pumpkin in meters
 
-const int wind_speed_mph=0;  // wind speed in mph
-const int wind_dir=0;  // wind direction degrees
-const float air_density=1.225; // air density in kg/m^3
+int wind_speed_mph=0;  // wind speed in mph
+int wind_dir=0;  // wind direction degrees
+float air_density=1.225; // air density in kg/m^3
 
-#define targetLat 41.927015 // target latitude in decimal degrees
-#define targetLon -91.425713  // target longitude in decimal degrees
-const int targetAlt_ft=885;  // target altitude in feet MSL
-const int bearing=343; // bearing of the flight path over the target
+float targetLat; //= 41.927015 // target latitude in decimal degrees
+float targetLon; //= -91.425713  // target longitude in decimal degrees
+int targetAlt_ft;  // target altitude in feet MSL
+int bearing; // bearing of the flight path over the target
 
 int state;
 
@@ -92,12 +92,25 @@ byte right_track[8]={
   0b00000};
 
 void setup() {
+  pinMode(11, OUTPUT); pinMode(12, OUTPUT); pinMode(13, OUTPUT);
   setLeds(red_led & yellow_led & green_led);
   tone(BUZZER,1500);
-  
+    
   for(int i=0;i<8;i++){
 	pinMode(i,INPUT_PULLUP);
   }
+  
+  // initialize lcd and set custom characters
+  lcd.init();
+  lcd.backlight();
+  
+  getSetting();
+  
+  lcd.createChar(0, blank);
+  lcd.createChar(1, plane_char);
+  lcd.createChar(2, on_target);
+  lcd.createChar(3, left_track);
+  lcd.createChar(4, right_track);
   
   // configure wind, convert to m/s and get x&y components
   float wind_speed=wind_speed_mph*0.44704;
@@ -117,16 +130,6 @@ void setup() {
   gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   gps.sendCommand(PMTK_SET_NMEA_UPDATE_2HZ);
 
-  // initialize lcd and set custom characters
-  lcd.init();
-  lcd.backlight();
-  lcd.createChar(0, blank);
-  lcd.createChar(1, plane_char);
-  lcd.createChar(2, on_target);
-  lcd.createChar(3, left_track);
-  lcd.createChar(4, right_track);
-  
-  delay(200);
   noTone(BUZZER);
   buzzer_on=false;
   setState_aqi();
@@ -218,11 +221,12 @@ void printSpeed(int gnd_speed){
 }
 
 void printTime(int countdown){
-  if(countdown<=0){
+  if(countdown<=1){
     countdown=0;
     if(not(buzzer_on)){
       tone(BUZZER, 1800, 500);
       buzzer_on=true;
+	  setLeds(red_led & yellow_led & green_led);
     }
   }
   int seconds=countdown%60;
@@ -325,9 +329,9 @@ void dropSim(){
 }
 
 void setLeds(byte lights){
-  Wire.beginTransmission(leds);
-  Wire.write(lights);
-  Wire.endTransmission();
+  digitalWrite(11, (bool) bitRead(lights, 0));
+  digitalWrite(12, (bool) bitRead(lights, 1));
+  digitalWrite(13, (bool) bitRead(lights, 2));
 }
 
 void setState_aqi(){
@@ -350,15 +354,48 @@ void setState_run(){
   tone(BUZZER, 2000, 200);
 }
 
-void getSetting(){
-	byte upper=0;
-	for(int i=0; i<4; i++){
-		upper+=digitalRead(i);
-		upper=upper<<1;
-	}
-	byte lower=0;
-	for(int i=4; i<8; i++){
-		lower+=digitalRead(i);
-		lower=lower<<1;
-	}
+void getSetting(){	// get user input from dip switches and set parameters
+  // byte input=0;
+  // for(int i=0; i<8; i++){
+    // input=input << 1;
+    // input+=1 ^ digitalRead(i);
+  // }
+  
+  byte lower=0;
+  for(int i=4; i<8; i++){
+    lower=lower << 1;
+    lower+=1 ^ digitalRead(i);
+  }
+  byte upper=0;
+  for(int i=0; i<4; i++){
+    upper=upper << 1;
+    upper+=1 ^ digitalRead(i);
+  }
+
+  float lats[] = {41.927338, 41.926116, 41.927015};
+  float lons[] = {-91.425406, -91.425253, -91.425713};
+  int alts[] = {689, 903, 890};
+  int directions[] = {129, 340, 162};
+  
+  targetLat = lats[upper];
+  targetLon = lons[upper];
+  targetAlt_ft = alts[upper];
+  bearing = directions[upper];
+  
+  float cds[] = {1.0};
+  float masses[] = {0.84};
+  float areas[] = {0.01273};
+  
+  pumpkin_cd = cds[lower];
+  pumpkin_mass = masses[lower];
+  pumpkin_cross_section = areas[lower];
+  
+  lcd.setCursor(0,0);
+  lcd.print("loading pmkn ");
+  lcd.print((int)lower);
+  lcd.setCursor(0,1);
+  lcd.print("target ");
+  lcd.print((int)upper);
+  delay(1500);
+  
 }
