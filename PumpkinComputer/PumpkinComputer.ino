@@ -372,15 +372,21 @@ void getSetting(){	// get user input from dip switches and set parameters
     upper+=1 ^ digitalRead(i);
   }
 
-  float lats[] = {41.927338, 41.926116, 41.927015};
-  float lons[] = {-91.425406, -91.425253, -91.425713};
-  int alts[] = {689, 903, 890};
-  int directions[] = {129, 340, 162};
+  // float lats[] = {41.927338, 41.926116, 41.927015};
+  // float lons[] = {-91.425406, -91.425253, -91.425713};
+  // int alts[] = {689, 903, 890};
+  // int directions[] = {129, 340, 162};
   
-  targetLat = lats[upper];
-  targetLon = lons[upper];
-  targetAlt_ft = alts[upper];
-  bearing = directions[upper];
+  // targetLat = lats[upper];
+  // targetLon = lons[upper];
+  // targetAlt_ft = alts[upper];
+  // bearing = directions[upper];
+  
+  int windDirs[] = {125, 135, 145, 155};
+  int windSpds[] = {4, 5, 6, 7};
+  
+  wind_dir = windDirs[upper%4];
+  wind_speed_mph = windSpds[upper>>2];
   
   float cds[] = {1.0};
   float masses[] = {0.84};
@@ -394,8 +400,10 @@ void getSetting(){	// get user input from dip switches and set parameters
   lcd.print("loading pmkn ");
   lcd.print((int)lower);
   lcd.setCursor(0,1);
-  lcd.print("target ");
-  lcd.print((int)upper);
+  lcd.print("wind ");
+  lcd.print(wind_dir);
+  lcd.print(" @ ");
+  lcd.print(wind_speed_mph);
   delay(1500);
   
 }
