@@ -22,6 +22,7 @@ int targetAlt_ft;  // target altitude in feet MSL
 int bearing; // bearing of the flight path over the target
 
 int state;
+volatile bool updateSim;
 
 float bearingRad;
 float windX;
@@ -96,9 +97,13 @@ void setup() {
   setLeds(red_led & yellow_led & green_led);
   tone(BUZZER,1500);
     
-  for(int i=0;i<8;i++){
+  pinMode(0,INPUT_PULLUP);
+  pinMode(1,INPUT_PULLUP);
+  pinMode(A2,INPUT_PULLUP);
+  for(int i=3;i<8;i++){
 	pinMode(i,INPUT_PULLUP);
   }
+  pinMode(2, INPUT);
   
   // initialize lcd and set custom characters
   lcd.init();
@@ -133,6 +138,8 @@ void setup() {
   noTone(BUZZER);
   buzzer_on=false;
   setState_aqi();
+  updateSim=true;
+  attachInterrupt(digitalPinToInterrupt(2), pps, RISING);
 }
 
 void loop() {
@@ -170,7 +177,10 @@ void loop() {
     drop_height_ft=(gps.altitude*3.28-targetAlt_ft);
     
     //run simulation and update drop coordinates
-    dropSim();
+	if(updateSim){
+		dropSim();
+		updateSim=false;
+	}
 
     //calculate flight path (y=mx+b in local coordinates, target is origin)
     float m=tan(-(bearing+90)*pi/180);
@@ -326,6 +336,7 @@ void dropSim(){
   dropX=-pumpkin_x;
   dropY=-pumpkin_y;
   setLeds(green_led);
+  updateSim=false;
 }
 
 void setLeds(byte lights){
@@ -367,26 +378,34 @@ void getSetting(){	// get user input from dip switches and set parameters
     lower+=1 ^ digitalRead(i);
   }
   byte upper=0;
-  for(int i=0; i<4; i++){
-    upper=upper << 1;
-    upper+=1 ^ digitalRead(i);
-  }
+  upper+=1 ^ digitalRead(0);
+  upper=upper<<1;
+  upper+=1 ^ digitalRead(1);
+  upper=upper<<1;
+  upper+=1 ^ digitalRead(A2);
+  upper=upper<<1;
+  upper+=1 ^ digitalRead(3);
+  
+  // for(int i=0; i<4; i++){
+    // upper=upper << 1;
+    // upper+=1 ^ digitalRead(i);
+  // }
 
-  // float lats[] = {41.927338, 41.926116, 41.927015};
-  // float lons[] = {-91.425406, -91.425253, -91.425713};
-  // int alts[] = {689, 903, 890};
-  // int directions[] = {129, 340, 162};
+  float lats[] = {41.927338, 41.926116, 41.927015};
+  float lons[] = {-91.425406, -91.425253, -91.425713};
+  int alts[] = {689, 903, 890};
+  int directions[] = {129, 340, 162};
   
-  // targetLat = lats[upper];
-  // targetLon = lons[upper];
-  // targetAlt_ft = alts[upper];
-  // bearing = directions[upper];
+  targetLat = lats[upper];
+  targetLon = lons[upper];
+  targetAlt_ft = alts[upper];
+  bearing = directions[upper];
   
-  int windDirs[] = {125, 135, 145, 155};
-  int windSpds[] = {4, 5, 6, 7};
+  // int windDirs[] = {125, 135, 145, 155};
+  // int windSpds[] = {4, 5, 6, 7};
   
-  wind_dir = windDirs[upper%4];
-  wind_speed_mph = windSpds[upper>>2];
+  // wind_dir = windDirs[upper%4];
+  // wind_speed_mph = windSpds[upper>>2];
   
   float cds[] = {1.0};
   float masses[] = {0.84};
@@ -400,10 +419,18 @@ void getSetting(){	// get user input from dip switches and set parameters
   lcd.print("loading pmkn ");
   lcd.print((int)lower);
   lcd.setCursor(0,1);
-  lcd.print("wind ");
-  lcd.print(wind_dir);
-  lcd.print(" @ ");
-  lcd.print(wind_speed_mph);
+  
+  lcd.print("target: ");
+  lcd.print(upper);
+  
+  // lcd.print("wind ");
+  // lcd.print(wind_dir);
+  // lcd.print(" @ ");
+  // lcd.print(wind_speed_mph);
+  
   delay(1500);
   
+}
+void pps(){
+	updateSim=true;
 }
