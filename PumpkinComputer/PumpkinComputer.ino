@@ -22,7 +22,7 @@ int targetAlt_ft;  // target altitude in feet MSL
 int bearing; // bearing of the flight path over the target
 
 int state;
-volatile bool updateSim;
+volatile byte updateSim;
 
 float bearingRad;
 float windX;
@@ -138,7 +138,7 @@ void setup() {
   noTone(BUZZER);
   buzzer_on=false;
   setState_aqi();
-  updateSim=true;
+  updateSim=0;
   attachInterrupt(digitalPinToInterrupt(2), pps, RISING);
 }
 
@@ -177,10 +177,8 @@ void loop() {
     drop_height_ft=(gps.altitude*3.28-targetAlt_ft);
     
     //run simulation and update drop coordinates
-	if(updateSim){
+	if(updateSim==2)
 		dropSim();
-		updateSim=false;
-	}
 
     //calculate flight path (y=mx+b in local coordinates, target is origin)
     float m=tan(-(bearing+90)*pi/180);
@@ -297,6 +295,7 @@ void printTrack(int error){
 }
 
 void dropSim(){
+  updateSim=0;
   setLeds(yellow_led & green_led);
   plane_gnd_speed=plane_ground_speed_mph*0.44704;
   float drop_height=drop_height_ft*0.3048;
@@ -336,7 +335,6 @@ void dropSim(){
   dropX=-pumpkin_x;
   dropY=-pumpkin_y;
   setLeds(green_led);
-  updateSim=false;
 }
 
 void setLeds(byte lights){
@@ -432,5 +430,5 @@ void getSetting(){	// get user input from dip switches and set parameters
   
 }
 void pps(){
-	updateSim=true;
+	updateSim++;
 }
