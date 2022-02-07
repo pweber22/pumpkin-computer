@@ -95,7 +95,7 @@ byte right_track[8]={
 void setup() {
   pinMode(11, OUTPUT); pinMode(12, OUTPUT); pinMode(13, OUTPUT);
   setLeds(red_led & yellow_led & green_led);
-  tone(BUZZER,1500);
+  tone(BUZZER,1000, 1000);
     
   pinMode(0,INPUT_PULLUP);
   pinMode(1,INPUT_PULLUP);
@@ -139,16 +139,19 @@ void setup() {
   buzzer_on=false;
   setState_aqi();
   updateSim=0;
+  //noInterrupts();
   attachInterrupt(digitalPinToInterrupt(2), pps, RISING);
 }
 
 void loop() {
+  // noInterrupts();
   for(int i=0; i<2; i++){
     char c;
     while(!gps.newNMEAreceived())
       c=gps.read();
     gps.parse(gps.lastNMEA());
   }
+  // interrupts();
 
   if(state==0){
     if(gps.fix)
@@ -177,7 +180,7 @@ void loop() {
     drop_height_ft=(gps.altitude*3.28-targetAlt_ft);
     
     //run simulation and update drop coordinates
-	if(updateSim==2)
+	if(updateSim>=2)
 		dropSim();
 
     //calculate flight path (y=mx+b in local coordinates, target is origin)
@@ -204,9 +207,9 @@ void loop() {
     if(plane_gnd_speed>1)
       time_to_drop=dropDistance/plane_gnd_speed;
     else time_to_drop=599;
-    printTime(time_to_drop);
 
     // send new data to lcd
+	// noInterrupts();
     printHeading((int)gps.angle);
     printTargetBearing(bearing);
     printTrack(err);
@@ -214,6 +217,7 @@ void loop() {
     printTime(time_to_drop);
     printAGL(drop_height_ft);
     printSpeed(plane_ground_speed_mph);
+	// interrupts();
     
     if(!gps.fix)
       setState_aqi();
@@ -349,11 +353,11 @@ void setState_aqi(){
   setLeds(red_led);
   lcd.setCursor(0,0);
   lcd.print("No GPS fix!");
-  tone(BUZZER, 1700, 100);
+  tone(BUZZER, 2000, 100);
   delay(200);
-  tone(BUZZER, 1700, 100);
+  tone(BUZZER, 2000, 100);
   delay(200);
-  tone(BUZZER, 1700, 100);
+  tone(BUZZER, 2000, 100);
 }
 
 void setState_run(){
@@ -430,5 +434,8 @@ void getSetting(){	// get user input from dip switches and set parameters
   
 }
 void pps(){
+	digitalWrite(12,1);
 	updateSim++;
+	tone(BUZZER, 1000, 50);
+	digitalWrite(13,0);
 }
