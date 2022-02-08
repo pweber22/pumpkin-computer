@@ -24,6 +24,7 @@ int bearing; // bearing of the flight path over the target
 int state;
 volatile byte updateSim;
 long update_timer;
+long start_time;
 
 float bearingRad;
 float windX;
@@ -135,13 +136,23 @@ void setup() {
   gps.begin(0x10);
   gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   gps.sendCommand(PMTK_SET_NMEA_UPDATE_2HZ);
+  //gps.sendCommand(PGCMD_ANTENNA);
 
   noTone(BUZZER);
   buzzer_on=false;
-  setState_aqi();
   updateSim=0;
   //noInterrupts();
-  //attachInterrupt(digitalPinToInterrupt(2), pps, RISING);
+  gps.println(PMTK_Q_RELEASE);
+  attachInterrupt(digitalPinToInterrupt(2), pps, RISING);
+  char c;
+  lcd.clear();
+  lcd.setCursor(0,0);
+  while(!gps.newNMEAreceived()){
+	  c=gps.read();
+	  lcd.print(c);
+  }
+  delay(1000);
+  setState_aqi();
 }
 
 void loop() {
@@ -157,6 +168,9 @@ void loop() {
   if(state==0){
     if(gps.fix)
       setState_run();
+	lcd.setCursor(0,1);
+	lcd.print((long) (millis()-start_time)/1000);
+	delay(500);
     return;
   }
 
@@ -181,7 +195,7 @@ void loop() {
     drop_height_ft=(gps.altitude*3.28-targetAlt_ft);
     
     //run simulation and update drop coordinates
-	if(update_timer-millis()>2000)
+	if(updateSim>=2)
 		dropSim();
 
     //calculate flight path (y=mx+b in local coordinates, target is origin)
@@ -393,6 +407,7 @@ void setState_aqi(){
   tone(BUZZER, 2000, 100);
   delay(200);
   tone(BUZZER, 2000, 100);
+  start_time=millis();
 }
 
 void setState_run(){
@@ -400,7 +415,7 @@ void setState_run(){
   state=1;
   lcd.clear();
   tone(BUZZER, 2000, 200);
-  update_timer=millis();
+  start_time=millis();
 }
 
 void getSetting(){	// get user input from dip switches and set parameters
