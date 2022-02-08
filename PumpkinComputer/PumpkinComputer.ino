@@ -23,6 +23,7 @@ int bearing; // bearing of the flight path over the target
 
 int state;
 volatile byte updateSim;
+long update_timer;
 
 float bearingRad;
 float windX;
@@ -140,7 +141,7 @@ void setup() {
   setState_aqi();
   updateSim=0;
   //noInterrupts();
-  attachInterrupt(digitalPinToInterrupt(2), pps, RISING);
+  //attachInterrupt(digitalPinToInterrupt(2), pps, RISING);
 }
 
 void loop() {
@@ -180,7 +181,7 @@ void loop() {
     drop_height_ft=(gps.altitude*3.28-targetAlt_ft);
     
     //run simulation and update drop coordinates
-	if(updateSim>=2)
+	if(update_timer-millis()>2000)
 		dropSim();
 
     //calculate flight path (y=mx+b in local coordinates, target is origin)
@@ -201,6 +202,7 @@ void loop() {
       if(planeY<m*planeX+b)
         err*=-1;
     }
+	err*= 3.281;	//convert error to feet
 
     //calculate time to drop
     float dropDistance=sqrt(sq(planeX-dropX)+sq(planeY-dropY));
@@ -209,20 +211,52 @@ void loop() {
     else time_to_drop=599;
 
     // send new data to lcd
-	// noInterrupts();
-    printHeading((int)gps.angle);
-    printTargetBearing(bearing);
-    printTrack(err);
-    printRange(dropDistance);
-    printTime(time_to_drop);
-    printAGL(drop_height_ft);
-    printSpeed(plane_ground_speed_mph);
+	displayLine1(plane_ground_speed_mph, time_to_drop, err, bearing);
+	displayLine2(drop_height_ft, err, (int)gps.angle);
+    // printHeading((int)gps.angle);
+    // printTargetBearing(bearing);
+    // printTrack(err);
+    // printRange(dropDistance);
+    // printTime(time_to_drop);
+    // printAGL(drop_height_ft);
+    // printSpeed(plane_ground_speed_mph);
 	// interrupts();
     
     if(!gps.fix)
       setState_aqi();
       
   }
+}
+
+void displayLine1(int gnd_spd, int countdown, int range, int bear){
+	char str[17];
+	int seconds=countdown%60;
+	int minutes=countdown/60;
+	sprintf(str, "%03d %1d:%2d %3d %3d", gnd_spd, minutes, seconds, range, bear);
+	lcd.setCursor(0,0);
+	lcd.print(str);
+}
+
+void displayLine2(int agl, int error, int heading){
+	byte track_display[10]={' ',' ',' ',' ','I',' ',' ',' ',' ',0};
+	error/=5;
+	if(abs(error)<1)
+		track_display[4]=0x02;
+	else{
+		if(abs(error)>4){
+			if(error<0)
+				track_display[0]=0x03;
+			else
+				track_display[8]=0x04;
+		}
+		else{
+			track_display[4+error]=0x01;
+		}
+	}
+	char str[17];
+	sprintf(str, "%03d%9s%03d", agl, track_display, heading);
+	lcd.setCursor(0,1);
+	lcd.print(str);
 }
 
 void printSpeed(int gnd_speed){
@@ -300,6 +334,7 @@ void printTrack(int error){
 
 void dropSim(){
   updateSim=0;
+  update_timer=millis();
   setLeds(yellow_led & green_led);
   plane_gnd_speed=plane_ground_speed_mph*0.44704;
   float drop_height=drop_height_ft*0.3048;
@@ -365,6 +400,7 @@ void setState_run(){
   state=1;
   lcd.clear();
   tone(BUZZER, 2000, 200);
+  update_timer=millis();
 }
 
 void getSetting(){	// get user input from dip switches and set parameters
@@ -434,8 +470,6 @@ void getSetting(){	// get user input from dip switches and set parameters
   
 }
 void pps(){
-	digitalWrite(12,1);
 	updateSim++;
 	tone(BUZZER, 1000, 50);
-	digitalWrite(13,0);
 }
