@@ -7,7 +7,7 @@
 #define red_led 0b11111011
 #define time_zone 18
 
-#define doBuzzer false
+#define doBuzzer true
 
 #if doBuzzer
 	#define BUZZER 9
@@ -141,9 +141,10 @@ void setup() {
 
   // start gps communication
   gps.begin(0x10);
-  gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
-  gps.sendCommand(PMTK_SET_NMEA_UPDATE_2HZ);
+  gps.sendCommand(PMTK_SET_BAUD_115200);
+  gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   gps.sendCommand(PMTK_API_SET_FIX_CTL_5HZ);
+  gps.sendCommand(PMTK_SET_NMEA_UPDATE_5HZ);
   //gps.sendCommand(PGCMD_ANTENNA);
 
   noTone(BUZZER);
@@ -174,9 +175,11 @@ void loop() {
 	char msg[9];
 	sprintf(msg, "%02d:%02d:%02d", (gps.hour+time_zone)%24, gps.minute, gps.seconds);
 	lcd.print(msg);
-    if(gps.fix)
-      setState_run();
-    return;
+    if(gps.fix){
+	  if(digitalRead(0)==LOW)
+		setState_targeting();
+	  else setState_run();
+	}
   }
 
   if(state==1){
@@ -243,7 +246,36 @@ void loop() {
     
     if(!gps.fix)
       setState_aqi();
+		
+	if(digitalRead(0)==LOW)
+		setState_targeting();
       
+  }
+  
+  if(state==2){
+	if(!gps.fix)
+		setState_aqi();
+	if(digitalRead(0)==HIGH)
+		setState_run();
+	float lat=(int)gps.latitude/100;
+    lat+=fmod(gps.latitude, 100)/60;
+    float lon=(int)gps.longitude/100;
+    lon+=fmod(gps.longitude, 100)/60;
+
+    if(gps.lon == 'W')
+      lon = -lon;
+	char buf[11];
+	dtostrf(lat, 10, 6, buf);
+	lcd.setCursor(0,0);
+	lcd.print(buf);
+	dtostrf(lon, 10, 6, buf);
+	lcd.setCursor(0,1);
+	lcd.print(buf);
+	lcd.setCursor(12,0);
+	sprintf(buf, "%04d", (int) (gps.altitude*3.28));
+	lcd.print(buf);
+	lcd.setCursor(14,1);
+	lcd.print("ft");
   }
 }
 
@@ -423,6 +455,15 @@ void setState_run(){
   start_time=millis();
 }
 
+void setState_targeting(){
+	setLeds(green_led&yellow_led);
+	state=2;
+	lcd.clear();
+	tone(BUZZER, 1000, 100);
+	delay(100);
+	tone(BUZZER, 1000, 100);
+}
+
 void getSetting(){	// get user input from dip switches and set parameters
   // byte input=0;
   // for(int i=0; i<8; i++){
@@ -449,10 +490,18 @@ void getSetting(){	// get user input from dip switches and set parameters
     // upper+=1 ^ digitalRead(i);
   // }
 
-  float lats[] = {41.927338, 41.926116, 41.927015, 41.916656, 41.916656};
-  float lons[] = {-91.425406, -91.425253, -91.425713, -91.436106, -91.436106};
-  int alts[] = {189, 903, 890, 775, 775};
-  int directions[] = {309, 340, 162, 93, 273};
+  float lats[] = {41.927338, 41.926116, 41.927015, 41.916656, 41.916656, 41.925383, 41.925383};
+  float lons[] = {-91.425406, -91.425253, -91.425713, -91.436106, -91.436106, -91.424815, -91.424815};
+  int alts[] = {189, 903, 890, 775, 775, 904, 904};
+  int directions[] = {309, 340, 162, 93, 273, 167, 316};
+  /*
+  Targets:
+  0 - sports center entrance heading west
+  1 - Commons entrance from Merner
+  2 - Merner entrance from commons
+  3&4 - Business 30 south lane east and west
+  5&6 - Ped mall Dows turnoff east and west
+  */
   
   targetLat = lats[upper];
   targetLon = lons[upper];
