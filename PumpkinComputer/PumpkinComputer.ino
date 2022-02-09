@@ -499,8 +499,10 @@ void getSetting(){	// get user input from dip switches and set parameters
   0 - sports center entrance heading west
   1 - Commons entrance from Merner
   2 - Merner entrance from commons
-  3&4 - Business 30 south lane east and west
-  5&6 - Ped mall Dows turnoff east and west
+  3 - Business 30 south lane east
+  4 - Business 30 south lane west
+  5 - Ped mall Dows turnoff east
+  6 - Ped mall Dows turnoff west 
   */
   
   targetLat = lats[upper];
