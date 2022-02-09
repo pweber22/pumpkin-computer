@@ -141,8 +141,9 @@ void setup() {
 
   // start gps communication
   gps.begin(0x10);
-  gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+  gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
   gps.sendCommand(PMTK_SET_NMEA_UPDATE_2HZ);
+  gps.sendCommand(PMTK_API_SET_FIX_CTL_5HZ);
   //gps.sendCommand(PGCMD_ANTENNA);
 
   noTone(BUZZER);
@@ -163,14 +164,10 @@ void setup() {
 }
 
 void loop() {
-  // noInterrupts();
-  for(int i=0; i<2; i++){
-    char c;
-    while(!gps.newNMEAreceived())
-      c=gps.read();
-    gps.parse(gps.lastNMEA());
-  }
-  // interrupts();
+  char c;
+  while(!gps.newNMEAreceived())
+	c=gps.read();
+  gps.parse(gps.lastNMEA());
 
   if(state==0){
 	lcd.setCursor(0,1);
@@ -233,7 +230,7 @@ void loop() {
     else time_to_drop=599;
 
     // send new data to lcd
-	displayLine1(plane_ground_speed_mph, time_to_drop, err, bearing);
+	displayLine1(plane_ground_speed_mph, time_to_drop, abs(err), bearing);
 	displayLine2(drop_height_ft, err, (int)gps.angle);
     // printHeading((int)gps.angle);
     // printTargetBearing(bearing);
