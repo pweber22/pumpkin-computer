@@ -1,12 +1,19 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_GPS.h>
-#define BUZZER 9
 #define leds 0x20
 #define green_led 0b11111110
 #define yellow_led 0b11111101
 #define red_led 0b11111011
 #define time_zone 18
+
+#define doBuzzer false
+
+#if doBuzzer
+	#define BUZZER 9
+#else
+	#define BUZZER 10
+#endif
 
 float pumpkin_cd=1.00; // coefficient of drag of the pumpkin
 float pumpkin_mass=0.830;  // mass of the pumpkin in kg
@@ -22,7 +29,7 @@ int targetAlt_ft;  // target altitude in feet MSL
 int bearing; // bearing of the flight path over the target
 
 int state;
-volatile byte updateSim;
+volatile uint8_t updateSim;
 long update_timer;
 long start_time;
 
@@ -166,11 +173,12 @@ void loop() {
   // interrupts();
 
   if(state==0){
+	lcd.setCursor(0,1);
+	char msg[9];
+	sprintf(msg, "%02d:%02d:%02d", (gps.hour+time_zone)%24, gps.minute, gps.seconds);
+	lcd.print(msg);
     if(gps.fix)
       setState_run();
-	lcd.setCursor(0,1);
-	lcd.print((long) (millis()-start_time)/1000);
-	delay(500);
     return;
   }
 
@@ -246,7 +254,7 @@ void displayLine1(int gnd_spd, int countdown, int range, int bear){
 	char str[17];
 	int seconds=countdown%60;
 	int minutes=countdown/60;
-	sprintf(str, "%03d %1d:%2d %3d %3d", gnd_spd, minutes, seconds, range, bear);
+	sprintf(str, "%03d %01d:%02d %03d %03d", gnd_spd, minutes, seconds, range, bear);
 	lcd.setCursor(0,0);
 	lcd.print(str);
 }
@@ -268,7 +276,7 @@ void displayLine2(int agl, int error, int heading){
 		}
 	}
 	char str[17];
-	sprintf(str, "%03d%9s%03d", agl, track_display, heading);
+	sprintf(str, "%04d%9s%03d", agl, track_display, heading);
 	lcd.setCursor(0,1);
 	lcd.print(str);
 }
@@ -444,10 +452,10 @@ void getSetting(){	// get user input from dip switches and set parameters
     // upper+=1 ^ digitalRead(i);
   // }
 
-  float lats[] = {41.927338, 41.926116, 41.927015};
-  float lons[] = {-91.425406, -91.425253, -91.425713};
-  int alts[] = {689, 903, 890};
-  int directions[] = {129, 340, 162};
+  float lats[] = {41.927338, 41.926116, 41.927015, 41.916656, 41.916656};
+  float lons[] = {-91.425406, -91.425253, -91.425713, -91.436106, -91.436106};
+  int alts[] = {189, 903, 890, 775, 775};
+  int directions[] = {309, 340, 162, 93, 273};
   
   targetLat = lats[upper];
   targetLon = lons[upper];
@@ -486,5 +494,4 @@ void getSetting(){	// get user input from dip switches and set parameters
 }
 void pps(){
 	updateSim++;
-	tone(BUZZER, 1000, 50);
 }
