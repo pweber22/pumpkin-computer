@@ -207,15 +207,19 @@ void loop() {
 		dropSim();
 
     //calculate flight path (y=mx+b in local coordinates, target is origin)
-    float m=tan(-(bearing+90)*pi/180);
+    double m=tan(-(bearing+90)*pi/180);
     float b=dropY-m*dropX;
     
-    //calculate point along planned flight path
+    //calculate nearest point along planned flight path
     float pathX=(m*(((1/m)*planeX+planeY)-b))/sq(m)+1;
     float pathY=m*pathX+b;
 
     //calculate distance to flight path
+<<<<<<< HEAD
     long err=(long)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
+=======
+    long err=(int)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
+>>>>>>> e9d9696e235aa304328fb7cc0e8895a2e5df6450
     if(bearing <180){
       if(planeY>m*planeX+b)
         err*=-1;
