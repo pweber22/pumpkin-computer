@@ -7,7 +7,11 @@
 #define red_led 0b11111011
 #define time_zone 18
 
+<<<<<<< Updated upstream
 #define doBuzzer true
+=======
+#define doBuzzer false
+>>>>>>> Stashed changes
 
 #if doBuzzer
 	#define BUZZER 9
@@ -215,11 +219,6 @@ void loop() {
     float pathY=m*pathX+b;
 
     //calculate distance to flight path
-<<<<<<< HEAD
-    long err=(long)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
-=======
-    long err=(int)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
->>>>>>> e9d9696e235aa304328fb7cc0e8895a2e5df6450
     if(bearing <180){
       if(planeY>m*planeX+b)
         err*=-1;
@@ -295,6 +294,7 @@ void displayLine1(int gnd_spd, int countdown, long range, int bear){
 	}
 	else
 		sprintf(str, "%03d %01d:%02d %03d %03d", gnd_spd, minutes, seconds, range, bear);
+
 	lcd.setCursor(0,0);
 	lcd.print(str);
 }
