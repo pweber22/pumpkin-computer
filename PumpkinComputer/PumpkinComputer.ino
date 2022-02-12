@@ -23,8 +23,8 @@ int wind_speed_mph=0;  // wind speed in mph
 int wind_dir=0;  // wind direction degrees
 float air_density=1.225; // air density in kg/m^3
 
-float targetLat; //= 41.927015 // target latitude in decimal degrees
-float targetLon; //= -91.425713  // target longitude in decimal degrees
+double targetLat; //= 41.927015 // target latitude in decimal degrees
+double targetLon; //= -91.425713  // target longitude in decimal degrees
 int targetAlt_ft;  // target altitude in feet MSL
 int bearing; // bearing of the flight path over the target
 
@@ -186,17 +186,17 @@ void loop() {
 
     //get plane coordinates in decimal degrees
     char buf[11];
-    float plane_lat=(int)gps.latitude/100;
+    double plane_lat=(int)gps.latitude/100;
     plane_lat+=fmod(gps.latitude, 100)/60;
-    float plane_lon=(int)gps.longitude/100;
+    double plane_lon=(int)gps.longitude/100;
     plane_lon+=fmod(gps.longitude, 100)/60;
 
     if(gps.lon == 'W')
       plane_lon = -plane_lon;
 
     //get plane coordinates in local xy system
-    float planeX=mPerLon*(plane_lon-targetLon);
-    float planeY=mPerLat*(plane_lat-targetLat);
+    double planeX=mPerLon*(plane_lon-targetLon);
+    double planeY=mPerLat*(plane_lat-targetLat);
     
     //update ground speed and agl height with new gps data
     plane_ground_speed_mph=(gps.speed*1.151);
@@ -215,7 +215,7 @@ void loop() {
     float pathY=m*pathX+b;
 
     //calculate distance to flight path
-    int err=(int)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
+    long err=(long)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
     if(bearing <180){
       if(planeY>m*planeX+b)
         err*=-1;
@@ -233,6 +233,7 @@ void loop() {
     else time_to_drop=599;
 
     // send new data to lcd
+	
 	displayLine1(plane_ground_speed_mph, time_to_drop, abs(err), bearing);
 	displayLine2(drop_height_ft, err, (int)gps.angle);
     // printHeading((int)gps.angle);
@@ -279,11 +280,17 @@ void loop() {
   }
 }
 
-void displayLine1(int gnd_spd, int countdown, int range, int bear){
+void displayLine1(int gnd_spd, int countdown, long range, int bear){
 	char str[17];
 	int seconds=countdown%60;
 	int minutes=countdown/60;
-	sprintf(str, "%03d %01d:%02d %03d %03d", gnd_spd, minutes, seconds, range, bear);
+	if(range>=1000){
+		int rangek = range/1000;
+		int rangeh = range/100;
+		sprintf(str, "%03d %01d:%02d %1d.%1dk %03d", gnd_spd, minutes, seconds, range, bear);
+	}
+	else
+		sprintf(str, "%03d %01d:%02d %03d %03d", gnd_spd, minutes, seconds, range, bear);
 	lcd.setCursor(0,0);
 	lcd.print(str);
 }
@@ -493,7 +500,7 @@ void getSetting(){	// get user input from dip switches and set parameters
   float lats[] = {41.927338, 41.926116, 41.927015, 41.916656, 41.916656, 41.925383, 41.925383};
   float lons[] = {-91.425406, -91.425253, -91.425713, -91.436106, -91.436106, -91.424815, -91.424815};
   int alts[] = {189, 903, 890, 775, 775, 904, 904};
-  int directions[] = {309, 340, 162, 93, 273, 167, 316};
+  int directions[] = {309, 340, 342, 93, 273, 167, 316};
   /*
   Targets:
   0 - sports center entrance heading west
