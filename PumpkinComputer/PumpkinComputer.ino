@@ -7,11 +7,7 @@
 #define red_led 0b11111011
 #define time_zone 18
 
-<<<<<<< Updated upstream
-#define doBuzzer true
-=======
 #define doBuzzer false
->>>>>>> Stashed changes
 
 #if doBuzzer
 	#define BUZZER 9
