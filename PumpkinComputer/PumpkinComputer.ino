@@ -27,10 +27,12 @@ int wind_speed_mph=0;  // wind speed in mph
 int wind_dir=0;  // wind direction degrees
 float air_density=1.225; // air density in kg/m^3
 
-double targetLat; //= 41.927015 // target latitude in decimal degrees
-double targetLon; //= -91.425713  // target longitude in decimal degrees
+long targetLat; //= 41.927015 // target latitude in decimal degrees
+long targetLon; //= -91.425713  // target longitude in decimal degrees
 int targetAlt_ft;  // target altitude in feet MSL
 int bearing; // bearing of the flight path over the target
+
+long scale_factor=1000000;	//scaling factor for long math rather than float math
 
 int state;
 volatile uint8_t updateSim;
@@ -41,8 +43,8 @@ float bearingRad;
 float windX;
 float windY;
 
-float mPerLat;
-float mPerLon;
+long mPerLat;
+long mPerLon;
 
 float plane_ground_speed_mph;
 float plane_gnd_speed;
@@ -140,8 +142,8 @@ void setup() {
   // calculate meters per degree latitude and longitude at target location
   bearingRad = bearing*pi/180;
   float radLat=targetLat*pi/180;
-  mPerLat = 111132.92-559.82*cos(2*radLat)+1.175*cos(4*radLat)-0.0023*cos(6*radLat);
-  mPerLon = 111412.84*cos(radLat)-93.5*cos(3*radLat)+0.118*cos(5*radLat);
+  mPerLat = scale_factor*(111132.92-559.82*cos(2*radLat)+1.175*cos(4*radLat)-0.0023*cos(6*radLat));
+  mPerLon = scale_factor*(111412.84*cos(radLat)-93.5*cos(3*radLat)+0.118*cos(5*radLat));
 
   // start gps communication
   gps.begin(0x10);
@@ -190,17 +192,17 @@ void loop() {
 
     //get plane coordinates in decimal degrees
     char buf[11];
-    double plane_lat=(int)gps.latitude/100;
-    plane_lat+=fmod(gps.latitude, 100)/60;
-    double plane_lon=(int)gps.longitude/100;
-    plane_lon+=fmod(gps.longitude, 100)/60;
+    long plane_lat=scale_factor*(int)(gps.latitude/100);
+    plane_lat+=scale_factor*fmod(gps.latitude, 100)/60;
+    long plane_lon=scale_factor*(int)(gps.longitude/100);
+    plane_lon+=scale_factor*fmod(gps.longitude, 100)/60;
 
     if(gps.lon == 'W')
       plane_lon = -plane_lon;
 
     //get plane coordinates in local xy system
-    double planeX=mPerLon*(plane_lon-targetLon);
-    double planeY=mPerLat*(plane_lat-targetLat);
+    float planeX=mPerLon*(plane_lon-targetLon);
+    float planeY=mPerLat*(plane_lat-targetLat);
     
     //update ground speed and agl height with new gps data
     plane_ground_speed_mph=(gps.speed*1.151);
@@ -211,7 +213,7 @@ void loop() {
 		dropSim();
 
     //calculate flight path (y=mx+b in local coordinates, target is origin)
-    double m=tan(-(bearing+90)*pi/180);
+    float m=tan(-(bearing+90)*pi/180);
     float b=dropY-m*dropX;
     
     //calculate nearest point along planned flight path
@@ -501,8 +503,8 @@ void getSetting(){	// get user input from dip switches and set parameters
     // upper+=1 ^ digitalRead(i);
   // }
 
-  float lats[] = {41.927338, 41.926116, 41.927015, 41.916656, 41.916656, 41.925383, 41.925383};
-  float lons[] = {-91.425406, -91.425253, -91.425713, -91.436106, -91.436106, -91.424815, -91.424815};
+  long lats[] = {41927338, 41926116, 41927015, 41916656, 41916656, 41925383, 41925383};
+  long lons[] = {-91425406, -91425253, -91425713, -91436106, -91436106, -91424815, -91424815};
   int alts[] = {189, 903, 890, 775, 775, 904, 904};
   int directions[] = {309, 340, 342, 93, 273, 167, 316};
   /*
