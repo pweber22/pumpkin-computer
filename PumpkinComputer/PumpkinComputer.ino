@@ -197,8 +197,8 @@ void loop() {
       plane_lon = -plane_lon;
 
     //get plane coordinates in local xy system
-    float planeX=mPerLon*(plane_lon-targetLon);
-    float planeY=mPerLat*(plane_lat-targetLat);
+    float planeX=mPerLon*(plane_lon-targetLon)/scale_factor;
+    float planeY=mPerLat*(plane_lat-targetLat)/scale_factor;
     
     //update ground speed and agl height with new gps data
     plane_ground_speed_mph=(gps.speed*1.151);
@@ -217,6 +217,7 @@ void loop() {
     float pathY=m*pathX+b;
 
     //calculate distance to flight path
+	long err=(long)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
     if(bearing <180){
       if(planeY>m*planeX+b)
         err*=-1;
