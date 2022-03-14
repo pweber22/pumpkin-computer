@@ -47,11 +47,17 @@ float time_step=0.01;
 
 float dropX;
 float dropY;
+float pathX;
+float pathY;
+float m;
+float b;
 
 #define g -9.81 // acc from gravity
 #define pi 3.14159265 // pi
 
+float dropDistance;
 int time_to_drop;
+float drop_time;
 
 void setup() {
   pinMode(9, OUTPUT);
@@ -107,19 +113,16 @@ void setup() {
 
   
 #if doLogging
-  //Serial.println("hour,minute,second,state,fix,sats,latitude,longitude,altft,hdg,vel_mph,error,timetodrop,tgtbearing");
+  //Serial.println("hour,minute,second,state,fix,sats,latitude,longitude,altft,hdg,vel_mph,error,timetodrop,tgtbearing,dropDistance");
 #endif
   setState_aqi();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
   while(!GPS.newNMEAreceived()){
     c=GPS.read();
-    //Serial.print(c);
    }
   GPS.parse(GPS.lastNMEA());
-  //Serial.println(GPS.lastNMEA());
 
   if(state==0){
     char msg[9];
@@ -166,12 +169,12 @@ void loop() {
     dropSim();
 
     //calculate flight path (y=mx+b in local coordinates, target is origin)
-    float m=tan(-(bearing+90)*pi/180);
-    float b=dropY-m*dropX;
+    m=tan(-(bearing+90)*pi/180);
+    b=dropY-m*dropX;
 
     //calculate nearest point along planned flight path
-    float pathX=(m*(((1/m)*planeX+planeY)-b))/sq(m)+1;
-    float pathY=m*pathX+b;
+    pathX=(m*(((1/m)*planeX+planeY)-b))/sq(m)+1;
+    pathY=m*pathX+b;
 
     //calculate distance to flight path
     err=(long)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
@@ -186,7 +189,7 @@ void loop() {
     err*= 3.281;  //convert error to feet
 
     //calculate time to drop
-    float dropDistance=sqrt(sq(planeX-dropX)+sq(planeY-dropY));
+    dropDistance=sqrt(sq(planeX-dropX)+sq(planeY-dropY));
     if(plane_gnd_speed>1)
       time_to_drop=dropDistance/plane_gnd_speed;
     else time_to_drop=599;
@@ -216,10 +219,62 @@ void loop() {
     display.print((int)GPS.angle);
     display.display();
 
+    if(time_to_drop<=3.0){
+      setState_terminal();
+    }
+    
     if(!GPS.fix)
       setState_aqi();
+  } //if(state==1)
+
+  while(state==2){
+    int terminal_count=drop_time-millis();
+    long gps_timer=millis();
+    while(millis()-gps_timer<200){
+      terminal_count=drop_time-millis();
+      if(terminal_count<=0) 
+        setState_drop();
+    Serial.println("TIMR,"+String(terminal_count));
+    }
+    
+    while(!GPS.newNMEAreceived()){
+      c=GPS.read();
+    }
+    GPS.parse(GPS.lastNMEA());
+    
+    //get plane coordinates in decimal degrees
+    plane_lat=(int)(GPS.latitude/100);
+    plane_lat+=fmod(GPS.latitude, 100)/60;
+    plane_lon=(int)(GPS.longitude/100);
+    plane_lon+=fmod(GPS.longitude, 100)/60;
+    if(GPS.lon == 'W')
+      plane_lon = -plane_lon;
+    
+    //get plane coordinates in local xy system
+    float planeX=mPerLon*(plane_lon-targetLon);
+    float planeY=mPerLat*(plane_lat-targetLat);
+    
+    //calculate nearest point along planned flight path
+    pathX=(m*(((1/m)*planeX+planeY)-b))/sq(m)+1;
+    pathY=m*pathX+b;
+
+    //calculate distance to flight path
+    err=(long)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
+    if(bearing <180){
+      if(planeY>m*planeX+b)
+        err*=-1;
+    }
+    else{
+      if(planeY<m*planeX+b)
+        err*=-1;
+    }
+    err*= 3.281;  //convert error to feet
+    SerialLog();
   }
 
+  if(state==3){
+    SerialLog();
+  }
 }
 
 void setState_aqi(){
@@ -234,6 +289,49 @@ void setState_run(){
   analogWrite(9,256);
   analogWrite(10,200);
   analogWrite(11,256);
+}
+
+void setState_terminal(){
+  state=2;
+  float dist_to_drop = sqrt(pow(pathX-dropX,2)+pow(pathY-dropY,2));
+  drop_time=millis()+(1000*dist_to_drop/plane_gnd_speed);
+}
+
+void setState_drop(){
+  state=3;
+  analogWrite(9, 200);
+  analogWrite(10, 256);
+  analogWrite(11, 256);
+
+  //get plane coordinates in decimal degrees
+  plane_lat=(int)(GPS.latitude/100);
+  plane_lat+=fmod(GPS.latitude, 100)/60;
+  plane_lon=(int)(GPS.longitude/100);
+  plane_lon+=fmod(GPS.longitude, 100)/60;
+  if(GPS.lon == 'W')
+    plane_lon = -plane_lon;
+  
+  //get plane coordinates in local xy system
+  float planeX=mPerLon*(plane_lon-targetLon);
+  float planeY=mPerLat*(plane_lat-targetLat);
+  
+  String logBuffer="DROP,";
+  logBuffer+=String(GPS.hour)+',';
+  logBuffer+=String(GPS.minute)+',';
+  logBuffer+=String(GPS.seconds)+',';
+  logBuffer+=String(state)+',';
+  logBuffer+=String(GPS.fix)+',';
+  logBuffer+=String(GPS.satellites)+',';
+  logBuffer+=String(plane_lat,6)+',';
+  logBuffer+=String(plane_lon,6)+',';
+  logBuffer+=String(drop_height_ft)+',';
+  logBuffer+=String((int)GPS.angle)+',';
+  logBuffer+=String(plane_ground_speed_mph)+',';
+  logBuffer+=String(err)+',';
+  logBuffer+=String(time_to_drop)+',';
+  logBuffer+=String(bearing)+',';
+  logBuffer+=String((int)sqrt(sq(planeX-dropX)+sq(planeY-dropY)));
+  Serial.println(logBuffer);
 }
 
 void dropSim(){
@@ -279,7 +377,7 @@ void dropSim(){
 }
 
 void SerialLog(){
-  String logBuffer="";
+  String logBuffer="FDAT,";
   logBuffer+=String(GPS.hour)+',';
   logBuffer+=String(GPS.minute)+',';
   logBuffer+=String(GPS.seconds)+',';
@@ -293,7 +391,8 @@ void SerialLog(){
   logBuffer+=String(plane_ground_speed_mph)+',';
   logBuffer+=String(err)+',';
   logBuffer+=String(time_to_drop)+',';
-  logBuffer+=String(bearing);
+  logBuffer+=String(bearing)+',';
+  logBuffer+=String((int)dropDistance);
   Serial.println(logBuffer);
 }
 
