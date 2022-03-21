@@ -6,6 +6,7 @@ import tkinter.font
 from PIL import Image, ImageTk
 
 SERIALPORT='COM7'
+feet_per_division = 3
 
 def on_closing():
     #raise SystemExit
@@ -15,7 +16,7 @@ def on_closing():
 def fmat(tgt):
     tgt.configure(font=('Helvetica', int(textSize), 'bold'), bg=bgnd, fg=fgnd, highlightbackground='#ddd', highlightthickness=1)
 
-
+ttd_precise = False
 
 #fnt = "Comic Sans MS"
 bgnd = '#026'
@@ -85,15 +86,16 @@ lbl_dist.grid(row=1, column=2, sticky='nsew')
 
 can_bar = tk.Canvas(master=frm_bar)
 can_bar.pack(fill='both', expand=True)
-track = can_bar.create_line(100,200,200,50, fill='black', width=4)
-can_bar.configure(bg='green')
+track = can_bar.create_line(100,200,200,50, fill='#999', width=6)
+can_bar.configure(bg='blue')
+plane_marker = can_bar.create_text(20, 20, text="^")
 
 
-states=['AOS','RUN','TERMINAL','SHUTDOWN']
+states=['AOS','RUN','TERM','SDWN']
 state_colors=['red','green','yellow','blue']
 
 while window_open:
-    textSize = window.winfo_width()/41
+    textSize = window.winfo_width()/42
     fnt = ('Arial', int(textSize))
     #print(textSize)
     line = pumpkuter.readline().decode('utf-8')[:-2]
@@ -101,7 +103,8 @@ while window_open:
     if(line):
         
         if('TIMR' in line):
-            time_to_drop=line.split(',')[1]
+            time_to_drop=float(line.split(',')[1])
+            ttd_precise=True
         
         if('DROP' in line):
             lbl_ttd.configure(bg='green')
@@ -158,7 +161,7 @@ while window_open:
             hdg = int(telem[10])
             vel = float(telem[11])
             err = int(telem[12])
-            if(not state == 2): time_to_drop = int(telem[13])
+            if(not ttd_precise): time_to_drop = int(telem[13])
             bearing = int(telem[14])
             drop_dist = int(telem[15])
             
@@ -168,16 +171,19 @@ while window_open:
             if time_to_drop < 1:
                 time_bg = 'green'
         
+        err_scaled = err / feet_per_division
+        err_pixels = err_scaled * can_bar.winfo_width()/15
+        
         lbl_time.configure(text=time)
         lbl_state.configure(text='State: '+states[state], bg=state_colors[state], font=fnt)
         lbl_latitude.configure(text='Lat:{:08.5f}{:s}'.format(lat,degree_sign))
         lbl_longitude.configure(text='Lon:{:08.5f}{:s}'.format(lon,degree_sign))
         lbl_sats.configure(text='Sats:{:d}'.format(sats))
-        lbl_alt.configure(text='Alt:{:4d}ft'.format(alt))
+        lbl_alt.configure(text='RAlt:{:4d}ft'.format(alt))
         lbl_hdg.configure(text='hdg {:03d}'.format(hdg))
         lbl_vel.configure(text='V:{:5.1f}mph'.format(vel))
-        lbl_err.configure(text='err:{:3d}'.format(err))
-        lbl_ttd.configure(text='t:{:2d}:{:02d}'.format(time_to_drop//60,time_to_drop%60), bg=time_bg)
+        lbl_err.configure(text='err:{:4d}ft'.format(err))
+        lbl_ttd.configure(text='t:{:2d}:{:05.2f}'.format(int(time_to_drop//60),time_to_drop%60), bg=time_bg)
         lbl_bng.configure(text='Path: {:03d}'.format(bearing))
         lbl_dist.configure(text='Range: {:4d} m'.format(drop_dist))
         
@@ -190,11 +196,35 @@ while window_open:
         fmat(lbl_hdg)
         fmat(lbl_vel)
         fmat(lbl_err)
-        fmat(lbl_ttd)
         fmat(lbl_bng)
         fmat(lbl_dist)
         
+        lbl_ttd.configure(font=('Helvetica', int(textSize), 'bold'), bg=time_bg, fg='#111', highlightbackground='#ddd', highlightthickness=1)
+        
+        if(err == 0): bar_bgnd = 'blue'
+        if(err > 0): bar_bgnd = 'green'
+        if(err < 0): bar_bgnd = 'red'
+        
         can_bar.coords(track, can_bar.winfo_width()/2, 10, can_bar.winfo_width()/2, can_bar.winfo_height()-10)
+
+        if(err_scaled<-7):
+            can_bar.itemconfig(plane_marker, text="<")
+            marker_box = can_bar.bbox(plane_marker)
+            plane_marker_x = (marker_box[2]-marker_box[0])*2/4
+            can_bar.coords(plane_marker, plane_marker_x, can_bar.winfo_height()/2)
+            
+        if(err_scaled>7):
+            can_bar.itemconfig(plane_marker, text=">")
+            marker_box = can_bar.bbox(plane_marker)
+            plane_marker_x = can_bar.winfo_width()-(marker_box[2]-marker_box[0])*2/4
+            can_bar.coords(plane_marker, plane_marker_x, can_bar.winfo_height()/2)
+            
+        if(err_scaled>-8 and err_scaled<8):
+            can_bar.coords(plane_marker, err_pixels+can_bar.winfo_width()/2, can_bar.winfo_height()/2)
+            can_bar.itemconfig(plane_marker, text='^')
+        
+        can_bar.itemconfig(plane_marker, font=('Helvetica', int(textSize*4), 'bold'), fill=fgnd)
+        can_bar.configure(bg=bar_bgnd)
     
     root.protocol("WM_DELETE_WINDOW", on_closing)
     root.update_idletasks()

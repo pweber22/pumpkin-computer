@@ -5,6 +5,7 @@
 #include "Display.h"
 #include "Pumpkin.h"
 #include "Target.h"
+#include "Wind.h"
 
 #define doLogging true
 
@@ -25,10 +26,6 @@ double plane_lat;
 double plane_lon;
 int alt_ft;
 float vel_mph;
-
-int wind_speed_mph=0;  // wind speed in mph
-int wind_dir=0;  // wind direction degrees
-float air_density=1.225; // air density in kg/m^3
 
 float bearingRad;
 float windX;
@@ -314,6 +311,10 @@ void setState_drop(){
   //get plane coordinates in local xy system
   float planeX=mPerLon*(plane_lon-targetLon);
   float planeY=mPerLat*(plane_lat-targetLat);
+
+  //update ground speed and agl height with new gps data
+  float final_ground_speed_mph=(GPS.speed*1.151);
+  int final_drop_height=(GPS.altitude*3.28-targetAlt_ft);
   
   String logBuffer="DROP,";
   logBuffer+=String(GPS.hour)+',';
@@ -330,7 +331,10 @@ void setState_drop(){
   logBuffer+=String(err)+',';
   logBuffer+=String(time_to_drop)+',';
   logBuffer+=String(bearing)+',';
-  logBuffer+=String((int)sqrt(sq(planeX-dropX)+sq(planeY-dropY)));
+  logBuffer+=String(planeX-dropX)+',';
+  logBuffer+=String(planeY-dropY)+',';
+  logBuffer+=String(final_ground_speed_mph)+',';
+  logBuffer+=String(final_drop_height);
   Serial.println(logBuffer);
 }
 
