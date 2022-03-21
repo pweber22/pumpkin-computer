@@ -46,8 +46,8 @@ float dropX;
 float dropY;
 float pathX;
 float pathY;
-float m;
-float b;
+double m;
+double b;
 
 #define g -9.81 // acc from gravity
 #define pi 3.14159265 // pi
@@ -166,15 +166,15 @@ void loop() {
     dropSim();
 
     //calculate flight path (y=mx+b in local coordinates, target is origin)
-    m=tan(-(bearing+90)*pi/180);
+    m=tan(-(bearing+90.0)*pi/180.0);
     b=dropY-m*dropX;
 
     //calculate nearest point along planned flight path
-    pathX=(m*(((1/m)*planeX+planeY)-b))/sq(m)+1;
+    pathX=(abs(((-m)*planeX+planeY)-b))/sqrt(sq(m)+1);
     pathY=m*pathX+b;
 
     //calculate distance to flight path
-    err=(long)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
+    err=sqrt(sq(pathX-planeX)+sq(pathY-planeY));
     if(bearing <180){
       if(planeY>m*planeX+b)
         err*=-1;
