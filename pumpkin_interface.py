@@ -4,6 +4,9 @@ import tkinter as tk
 import sys
 import tkinter.font
 from PIL import Image, ImageTk
+import logging
+
+logging.getLogger('root').setLevel('INFO')
 
 SERIALPORT='COM7'
 feet_per_division = 3
@@ -47,6 +50,7 @@ while(not connection):
         pumpkuter = serial.Serial(port=SERIALPORT, baudrate=115200, timeout=.1)
         connection = True
         lbl_test.destroy()
+        logging.info("Connected to Pumpkuter")
     except serial.SerialException:
         root.update_idletasks()
         root.update()
