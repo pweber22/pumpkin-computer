@@ -9,7 +9,7 @@
 
 #define doLogging true
 
-#define time_zone 18
+#define time_zone 19
 
 Adafruit_SSD1306 display(128, 32, &Wire1, 0);
 Adafruit_GPS GPS(&Wire1);
@@ -123,20 +123,30 @@ void loop() {
 
   if(state==0){
     char msg[9];
-    for(int i=128; i>-64;i-=3){
-      display.clearDisplay();
-      display.drawBitmap(i, 0, image_data_frame000, 64, 32, 2);
-      display.setCursor(80,25);
-      sprintf(msg, "%02d:%02d:%02d", (GPS.hour+time_zone)%24, GPS.minute, GPS.seconds);
-      display.write(msg);
-      display.display();
-      delay(10);
+    for(int i=128; i>-65;i-=6){
+      for(int j=0; j<6; j+=2){
+        display.clearDisplay();
+        display.drawBitmap(i-j, 0, image_data_frame000, 64, 32, 2);
+        display.setCursor(80,25);
+        sprintf(msg, "%02d:%02d:%02d", (GPS.hour+time_zone)%24, GPS.minute, GPS.seconds);
+        display.write(msg);
+        display.display();
+        delay(20);
+      }
+      while(!GPS.newNMEAreceived())
+        c=GPS.read();
+      GPS.parse(GPS.lastNMEA());
     }
-    for(int i=0; i<20; i++){
+    for(int i=0; i<10; i++){
       while(!GPS.newNMEAreceived()){
         c=GPS.read();
       }
       GPS.parse(GPS.lastNMEA());
+      display.clearDisplay();
+      display.setCursor(80,25);
+      sprintf(msg, "%02d:%02d:%02d", (GPS.hour+time_zone)%24, GPS.minute, GPS.seconds);
+      display.write(msg);
+      display.display();
       #if doLogging
       SerialLog();
       #endif
@@ -411,13 +421,18 @@ void getSetting(){
     lower=lower << 1;
     lower+=1 ^ digitalRead(i);
   }
+
+  wind_speed_mph=upper;
+
+  wind_dir=30*lower;
+  
   //display.clearDisplay();
-  display.setCursor(0,18);
-  display.print("target: ");
-  display.print(upper);
+  display.setCursor(0,17);
+  display.print("wind speed: ");
+  display.print(wind_speed_mph);
   display.setCursor(0,24);
-  display.print("pumpkin: ");
-  display.print(lower);
+  display.print("wind dir: ");
+  display.print(wind_dir);
   display.display();
   delay(1500);
 }
