@@ -11,6 +11,12 @@
 
 #define time_zone 19
 
+const int ft_per_bar = 5;     //feet per light on the error bar
+const int abort_threshold = 25;  //feet from flight path to trigger abort on entering terminal guidance
+
+const uint8_t addr_left = 0x20;
+const uint8_t addr_right = 0x24;
+
 Adafruit_SSD1306 display(128, 32, &Wire1, 0);
 Adafruit_GPS GPS(&Wire1);
 
@@ -94,6 +100,27 @@ void setup() {
   display.write(GPS.lastNMEA());
   display.display();
   getSetting();
+
+  uint8_t bar = 0x01;
+  //Light bar startup out solid
+  while(bar<0xff){
+    lightBar(bar, bar);
+    bar = bar << 1;
+    bar++;
+    delay(100);
+  }
+  //light bar startup turn off from outside in
+  for(uint8_t i=0xff; i>0x00; i=i>>1){
+    lightBar(i, i);
+    delay(100);
+  }
+  //light bar send lights from middle outward, stop at edges
+  bar = 0x01;
+  while(bar<0x80){
+    lightBar(bar, bar);
+    bar = bar << 1;
+    delay(100);
+  }
   delay(1000);
 
   // configure wind, convert to m/s and get x&y components
@@ -151,8 +178,12 @@ void loop() {
       SerialLog();
       #endif
     }
-    if(GPS.fix)
-      setState_run();
+    if(GPS.fix){
+      if(digitalRead(0))
+        setState_targeting();
+      else
+        setState_run();
+    }
   }
 
   if(state==1){
@@ -195,6 +226,9 @@ void loop() {
     }
     err*= 3.281;  //convert error to feet
 
+    //display error on light bar
+    bar_show_error(err);
+
     //calculate time to drop
     dropDistance=sqrt(sq(planeX-dropX)+sq(planeY-dropY));
     if(plane_gnd_speed>1)
@@ -211,39 +245,53 @@ void loop() {
     display.setTextSize(1);
     display.setTextColor(1);
     display.setCursor(0,0);
-    display.print(plane_lat,6);
-    display.setCursor(0,8);
-    display.print(plane_lon,6);
-    display.setCursor(0,16);
-    display.print(GPS.altitude*3.28);
-    display.print(" ft");
-    display.setCursor(0,24);
-    display.print(GPS.speed*1.151);
-    display.print(" mph");
-
-    display.setCursor(80,0);
-    display.print("hdg: ");
-    display.print((int)GPS.angle);
+    char buf[85];
+    sprintf(buf, "spd:%3dmph alt:%4dft\nbng:%03d\nhdg:%03d\nTime: %1d:%02d  err:%5d",
+            (int)(GPS.speed*1.151), (int)(GPS.altitude*3.28), bearing, (int)GPS.angle, time_to_drop/60, time_to_drop%60, (int)err);
+    display.print(buf);
+//    display.print(plane_lat,6);
+//    display.setCursor(0,8);
+//    display.print(plane_lon,6);
+//    display.setCursor(0,16);
+//    display.print(GPS.altitude*3.28);
+//    display.print(" ft");
+//    display.setCursor(0,24);
+//    display.print(GPS.speed*1.151);
+//    display.print(" mph");
+//    display.setCursor(80,0);
+//    display.print("hdg: ");
+//    display.print((int)GPS.angle);
     display.display();
 
     if(time_to_drop<=3.0){
       setState_terminal();
     }
+
+    
+    if(digitalRead(0)==LOW)
+      setState_targeting();
     
     if(!GPS.fix)
       setState_aqi();
   } //if(state==1)
 
   while(state==2){
-    int terminal_count=drop_time-millis();
+    float terminal_count=drop_time-millis();
     long gps_timer=millis();
+    display.clearDisplay();
+    display.setTextSize(4);
     while(millis()-gps_timer<200){
       terminal_count=drop_time-millis();
       if(terminal_count<=0) 
         setState_drop();
-    Serial.println("TIMR,"+String(terminal_count));
+      Serial.println("TIMR,"+String(terminal_count));
+      display.clearDisplay();
+      display.setCursor(0,0);
+      display.print(terminal_count, 3);
+      display.display();
     }
-    
+
+    // Update gps for error bar every 200 ms
     while(!GPS.newNMEAreceived()){
       c=GPS.read();
     }
@@ -252,10 +300,10 @@ void loop() {
     //get plane coordinates in decimal degrees
     plane_lat=(int)(GPS.latitude/100);
     plane_lat+=fmod(GPS.latitude, 100)/60;
+    if(GPS.lat == 'S') plane_lat = -plane_lat;
     plane_lon=(int)(GPS.longitude/100);
     plane_lon+=fmod(GPS.longitude, 100)/60;
-    if(GPS.lon == 'W')
-      plane_lon = -plane_lon;
+    if(GPS.lon == 'W') plane_lon = -plane_lon;
     
     //get plane coordinates in local xy system
     float planeX=mPerLon*(plane_lon-targetLon);
@@ -277,10 +325,35 @@ void loop() {
     }
     err*= 3.281;  //convert error to feet
     SerialLog();
+    bar_show_error(err);  //display error on light bar
+    display.setTextSize(1);
   }
 
   if(state==3){
     SerialLog();
+  }
+
+  if(state==5){
+    plane_lat=(int)(GPS.latitude/100);
+    plane_lat+=fmod(GPS.latitude, 100)/60;
+    if(GPS.lat == 'S') plane_lat = -plane_lat;
+    plane_lon=(int)(GPS.longitude/100);
+    plane_lon+=fmod(GPS.longitude, 100)/60;
+    if(GPS.lon == 'W') plane_lon = -plane_lon;
+    
+    display.clearDisplay();
+    display.setCursor(0,0);
+    display.print("Lat: ");
+    display.print(plane_lat, 6);
+    display.print("\nLon: ");
+    display.print(plane_lon, 6);
+    display.print("\nAlt: ");
+    display.print(GPS.altitude*3.28);
+    display.print("ft");
+    display.display();
+
+    if(digitalRead(0)==HIGH) setState_run();
+    if(!GPS.fix) setState_aqi();
   }
 }
 
@@ -289,6 +362,7 @@ void setState_aqi(){
   analogWrite(9, 256);
   analogWrite(10, 256);
   analogWrite(11, 200);
+  lightBar(0x40, 0x40);
 }
 
 void setState_run(){
@@ -299,7 +373,14 @@ void setState_run(){
 }
 
 void setState_terminal(){
+  if(err > abort_threshold){
+    setState_abort();
+    return;
+  }
   state=2;
+  analogWrite(9, 256);
+  analogWrite(10, 200);
+  analogWrite(11, 200);
   float dist_to_drop = sqrt(pow(pathX-dropX,2)+pow(pathY-dropY,2));
   drop_time=millis()+(1000*dist_to_drop/plane_gnd_speed);
 }
@@ -309,6 +390,7 @@ void setState_drop(){
   analogWrite(9, 200);
   analogWrite(10, 256);
   analogWrite(11, 256);
+  lightBar(0xff, 0xff);
 
   //get plane coordinates in decimal degrees
   plane_lat=(int)(GPS.latitude/100);
@@ -346,6 +428,37 @@ void setState_drop(){
   logBuffer+=String(final_ground_speed_mph)+',';
   logBuffer+=String(final_drop_height);
   Serial.println(logBuffer);
+}
+
+void setState_abort(){
+  state = 4;
+  analogWrite(9, 256);
+  analogWrite(10, 256);
+  analogWrite(11, 100);
+  bool rst = digitalRead(0);
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.print("Abort! \nerr at ");
+  display.print(dropDistance*3.28);
+  display.print("ft:");
+  display.print(err);
+  display.print("ft");
+  display.print("\ntoggle switch 1 \nto reset");
+  display.display();
+  while(digitalRead(0) == rst){
+    lightBar(0xaa, 0xaa);
+    delay(500);
+    lightBar(0x55, 0x55);
+    delay(500);
+  }
+  setState_run();
+}
+
+void setState_targeting(){
+  state = 5;
+  analogWrite(9, 200);
+  analogWrite(10, 256);
+  analogWrite(11, 256);
 }
 
 void dropSim(){
@@ -434,5 +547,26 @@ void getSetting(){
   display.print("wind dir: ");
   display.print(wind_dir);
   display.display();
-  delay(1500);
+}
+
+void lightBar(byte left, byte right){
+  left = ~left;
+  right = ~right;
+  Wire1.beginTransmission(addr_left);
+  Wire1.write(left);
+  Wire1.endTransmission();
+  Wire1.beginTransmission(addr_right);
+  Wire1.write(right);
+  Wire1.endTransmission();
+}
+
+void bar_show_error(int error){  //display error on bar based on error number
+    int err_scaled = abs(err/ft_per_bar);
+    uint8_t bar = 0x01 << err_scaled;
+    if(err_scaled != 0){
+      bar-=1;
+      bar <<=1;
+    }
+    if(err<ft_per_bar) lightBar(bar, 0x00);
+    else lightBar(0x00, bar);
 }

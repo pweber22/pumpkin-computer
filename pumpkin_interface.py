@@ -30,6 +30,8 @@ window_open=True
 
 degree_sign = u'\N{DEGREE SIGN}'
 
+last_state = 0
+
 root = tk.Tk()
 root.title("Pumpkuter v3.1")
 window = tk.Frame(master=root)
@@ -95,8 +97,8 @@ can_bar.configure(bg='blue')
 plane_marker = can_bar.create_text(20, 20, text="^")
 
 
-states=['AOS','RUN','TERM','SDWN']
-state_colors=['red','green','yellow','blue']
+states=['AOS','RUN','TERM','SDWN', 'ABORT', 'TGT']
+state_colors=['red','green','yellow','blue', 'orange', 'blue']
 
 while window_open:
     textSize = window.winfo_width()/42
@@ -177,6 +179,10 @@ while window_open:
         
         err_scaled = err / feet_per_division
         err_pixels = err_scaled * can_bar.winfo_width()/15
+        
+        if(not state==last_state):
+            logging.info("state changed to "+states[state])
+            last_state=state
         
         lbl_time.configure(text=time)
         lbl_state.configure(text='State: '+states[state], bg=state_colors[state], font=fnt)
