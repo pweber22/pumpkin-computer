@@ -143,10 +143,23 @@ void setup() {
 }
 
 void loop() {
+  //update GPS
   while(!GPS.newNMEAreceived()){
     c=GPS.read();
    }
   GPS.parse(GPS.lastNMEA());
+  
+  //get plane coordinates in decimal degrees
+  plane_lat=(int)(GPS.latitude/100);
+  plane_lat+=fmod(GPS.latitude, 100)/60;
+  plane_lon=(int)(GPS.longitude/100);
+  plane_lon+=fmod(GPS.longitude, 100)/60;
+  if(GPS.lon == 'W')
+    plane_lon = -plane_lon;
+
+  //get plane coordinates in local xy system
+  float planeX=mPerLon*(plane_lon-targetLon);
+  float planeY=mPerLat*(plane_lat-targetLat);
 
   if(state==0){
     char msg[9];
@@ -187,17 +200,6 @@ void loop() {
   }
 
   if(state==1){
-    //get plane coordinates in decimal degrees
-    plane_lat=(int)(GPS.latitude/100);
-    plane_lat+=fmod(GPS.latitude, 100)/60;
-    plane_lon=(int)(GPS.longitude/100);
-    plane_lon+=fmod(GPS.longitude, 100)/60;
-    if(GPS.lon == 'W')
-      plane_lon = -plane_lon;
-
-    //get plane coordinates in local xy system
-    float planeX=mPerLon*(plane_lon-targetLon);
-    float planeY=mPerLat*(plane_lat-targetLat);
 
     //update ground speed and agl height with new gps data
     plane_ground_speed_mph=(GPS.speed*1.151);
@@ -215,7 +217,8 @@ void loop() {
     pathY=m*pathX+b;
 
     //calculate distance to flight path
-    err=sqrt(sq(pathX-planeX)+sq(pathY-planeY));
+    err=abs(cos(bearingRad) * (dropY - planeY) - (sin(bearingRad)*(dropX - planeX)));
+    //err=sqrt(sq(pathX-planeX)+sq(pathY-planeY));
     if(bearing <180){
       if(planeY>m*planeX+b)
         err*=-1;
@@ -264,7 +267,7 @@ void loop() {
     display.display();
 
     if(time_to_drop<=3.0){
-      setState_terminal();
+      setState_terminal(dropDistance);
     }
 
     
@@ -314,7 +317,8 @@ void loop() {
     pathY=m*pathX+b;
 
     //calculate distance to flight path
-    err=(long)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
+    err=abs(cos(bearingRad) * (dropY - planeY) - (sin(bearingRad)*(dropX - planeX)));
+    //err=(long)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
     if(bearing <180){
       if(planeY>m*planeX+b)
         err*=-1;
@@ -372,7 +376,7 @@ void setState_run(){
   analogWrite(11,256);
 }
 
-void setState_terminal(){
+void setState_terminal(float dist_to_drop){
   if(err > abort_threshold){
     setState_abort();
     return;
@@ -381,7 +385,7 @@ void setState_terminal(){
   analogWrite(9, 256);
   analogWrite(10, 200);
   analogWrite(11, 200);
-  float dist_to_drop = sqrt(pow(pathX-dropX,2)+pow(pathY-dropY,2));
+  //float dist_to_drop = sqrt(pow(planeX-dropX,2)+pow(planeY-dropY,2));
   drop_time=millis()+(1000*dist_to_drop/plane_gnd_speed);
 }
 
