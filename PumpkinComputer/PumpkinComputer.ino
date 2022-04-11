@@ -34,6 +34,7 @@ int alt_ft;
 float vel_mph;
 
 float bearingRad;
+float bearingRadError;
 float windX;
 float windY;
 
@@ -130,6 +131,8 @@ void setup() {
 
   // calculate meters per degree latitude and longitude at target location
   bearingRad = bearing*pi/180;
+  bearingRadError = (-bearing)+90;
+  bearingRadError = bearingRadError*pi/180;
   float radLat=targetLat*pi/180;
   mPerLat = (111132.92-559.82*cos(2*radLat)+1.175*cos(4*radLat)-0.0023*cos(6*radLat));
   mPerLon = (111412.84*cos(radLat)-93.5*cos(3*radLat)+0.118*cos(5*radLat));
@@ -217,7 +220,7 @@ void loop() {
     pathY=m*pathX+b;
 
     //calculate distance to flight path
-    err=abs(cos(bearingRad) * (dropY - planeY) - (sin(bearingRad)*(dropX - planeX)));
+    err=abs(cos(bearingRadError) * (dropY - planeY) - (sin(bearingRadError)*(dropX - planeX)));
     //err=sqrt(sq(pathX-planeX)+sq(pathY-planeY));
     if(bearing <180){
       if(planeY>m*planeX+b)
@@ -317,7 +320,7 @@ void loop() {
     pathY=m*pathX+b;
 
     //calculate distance to flight path
-    err=abs(cos(bearingRad) * (dropY - planeY) - (sin(bearingRad)*(dropX - planeX)));
+    err=abs(cos(bearingRadError) * (dropY - planeY) - (sin(bearingRadError)*(dropX - planeX)));
     //err=(long)sqrt(sq(pathX-planeX)+sq(pathY-planeY));
     if(bearing <180){
       if(planeY>m*planeX+b)
@@ -374,6 +377,7 @@ void setState_run(){
   analogWrite(9,256);
   analogWrite(10,200);
   analogWrite(11,256);
+  lightBar(0x00, 0x00);
 }
 
 void setState_terminal(float dist_to_drop){
@@ -460,6 +464,7 @@ void setState_abort(){
 
 void setState_targeting(){
   state = 5;
+  lightBar(0x03, 0x03);
   analogWrite(9, 200);
   analogWrite(10, 256);
   analogWrite(11, 256);

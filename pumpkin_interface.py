@@ -117,7 +117,7 @@ while window_open:
             root.update()
             
             telem = line.split(',')
-            hours = (int(telem[1]) + 18)%24
+            hours = (int(telem[1]) + 19)%24
             minutes = int(telem[2])
             seconds = int(telem[3])
             time = '{:02}:{:02}:{:02} CST'.format(hours,minutes,seconds)
