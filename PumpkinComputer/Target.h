@@ -10,7 +10,13 @@
 //int bearing = 276; // bearing of the flight path over the target
 
 //setup for Merner entrance from commons
-double targetLat = 41.927015;
-double targetLon = -91.425713;
-int targetAlt_ft = 890;
-int bearing = 342;
+//double targetLat = 41.927015;
+//double targetLon = -91.425713;
+//int targetAlt_ft = 890;
+//int bearing = 342;
+
+//Fire Station walking down 2nd Ave SW Sidewalk
+double targetLat = 41.918014;
+double targetLon = -91.422331;
+int targetAlt_ft = 844;
+int bearing = 215;
