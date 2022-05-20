@@ -18,5 +18,7 @@
 //Fire Station walking down 2nd Ave SW Sidewalk
 double targetLat = 41.918014;
 double targetLon = -91.422331;
-int targetAlt_ft = 844;
+//int targetAlt_ft = 844;
 int bearing = 215;
+
+int targetAlt_ft = 0;

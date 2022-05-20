@@ -22,7 +22,7 @@ Adafruit_GPS GPS(&Wire1);
 
 unsigned int state;
 
-uint8_t c;
+uint8_t c;  //character for gps read buffer
 
 //float pumpkin_cd=1.00; // coefficient of drag of the pumpkin
 //float pumpkin_mass=0.830;  // mass of the pumpkin in kg
@@ -252,8 +252,8 @@ void loop() {
     display.setTextColor(1);
     display.setCursor(0,0);
     char buf[85];
-    sprintf(buf, "spd:%3dmph alt:%4dft\nbng:%03d\nhdg:%03d\nTime: %1d:%02d  err:%5d",
-            (int)(GPS.speed*1.151), (int)(GPS.altitude*3.28), bearing, (int)GPS.angle, time_to_drop/60, time_to_drop%60, (int)err);
+    sprintf(buf, "spd:%3dmph alt:%4dft\nbng:%03d       sats:%2d\nhdg:%03d\nTime: %1d:%02d  err:%5d",
+            (int)(GPS.speed*1.151), (int)(GPS.altitude*3.28)-targetAlt_ft, bearing, GPS.satellites, (int)GPS.angle, time_to_drop/60, time_to_drop%60, (int)err);
     display.print(buf);
 //    display.print(plane_lat,6);
 //    display.setCursor(0,8);
