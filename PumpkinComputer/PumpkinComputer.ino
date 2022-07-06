@@ -96,6 +96,12 @@ void setup() {
   GPS.sendCommand(PMTK_API_SET_FIX_CTL_5HZ);
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_5HZ);
 
+  for(int i=0; i<5; i++){
+    while(!GPS.newNMEAreceived()){
+      c=GPS.read();
+    }
+  }
+  
   display.clearDisplay();
   display.setCursor(0,0);
   display.write(GPS.lastNMEA());
@@ -253,7 +259,8 @@ void loop() {
     display.setCursor(0,0);
     char buf[85];
     sprintf(buf, "spd:%3dmph alt:%4dft\nbng:%03d       sats:%2d\nhdg:%03d\nTime: %1d:%02d  err:%5d",
-            (int)(GPS.speed*1.151), (int)(GPS.altitude*3.28)-targetAlt_ft, bearing, GPS.satellites, (int)GPS.angle, time_to_drop/60, time_to_drop%60, (int)err);
+            (int)(GPS.speed*1.151), (int)(GPS.altitude*3.28)-targetAlt_ft, bearing, GPS.satellites,
+            (int)GPS.angle, time_to_drop/60, time_to_drop%60, (int)err);
     display.print(buf);
 //    display.print(plane_lat,6);
 //    display.setCursor(0,8);
@@ -290,7 +297,7 @@ void loop() {
       terminal_count=drop_time-millis();
       if(terminal_count<=0) 
         setState_drop();
-      Serial.println("TIMR,"+String(terminal_count));
+      Serial.println("TIMR,"+String(float(terminal_count/1000)));
       display.clearDisplay();
       display.setCursor(0,0);
       display.print(terminal_count, 3);
@@ -338,6 +345,10 @@ void loop() {
 
   if(state==3){
     SerialLog();
+    display.clearDisplay();
+    display.setCursor(0,0);
+    display.setTextSize(2);
+    display.print("DROP");
   }
 
   if(state==5){
@@ -357,6 +368,8 @@ void loop() {
     display.print("\nAlt: ");
     display.print(GPS.altitude*3.28);
     display.print("ft");
+    display.print("\nSats: ");
+    display.print(GPS.satellites);
     display.display();
 
     if(digitalRead(0)==HIGH) setState_run();
@@ -387,16 +400,16 @@ void setState_terminal(float dist_to_drop){
   }
   state=2;
   analogWrite(9, 256);
-  analogWrite(10, 200);
-  analogWrite(11, 200);
+  analogWrite(10, 100);
+  analogWrite(11, 100);
   //float dist_to_drop = sqrt(pow(planeX-dropX,2)+pow(planeY-dropY,2));
   drop_time=millis()+(1000*dist_to_drop/plane_gnd_speed);
 }
 
 void setState_drop(){
   state=3;
-  analogWrite(9, 200);
-  analogWrite(10, 256);
+  analogWrite(9, 256);
+  analogWrite(10, 100);
   analogWrite(11, 256);
   lightBar(0xff, 0xff);
 
