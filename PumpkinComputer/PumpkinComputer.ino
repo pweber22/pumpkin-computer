@@ -45,7 +45,7 @@ float plane_ground_speed_mph;
 float plane_gnd_speed;
 int drop_height_ft;
 float pumpkin_cross_section;
-long err;
+float err;
 
 float time_step=0.01;
 
@@ -246,6 +246,7 @@ void loop() {
     if(plane_gnd_speed>1)
       time_to_drop=dropDistance/plane_gnd_speed;
     else time_to_drop=599;
+    if(time_to_drop > 599) time_to_drop=599;
 
     //send new data to display and serial
 
@@ -291,18 +292,7 @@ void loop() {
   while(state==2){
     float terminal_count=drop_time-millis();
     long gps_timer=millis();
-    display.clearDisplay();
-    display.setTextSize(4);
-    while(millis()-gps_timer<200){
-      terminal_count=drop_time-millis();
-      if(terminal_count<=0) 
-        setState_drop();
-      Serial.println("TIMR,"+String(float(terminal_count/1000)));
-      display.clearDisplay();
-      display.setCursor(0,0);
-      display.print(terminal_count, 3);
-      display.display();
-    }
+    
 
     // Update gps for error bar every 200 ms
     while(!GPS.newNMEAreceived()){
@@ -340,6 +330,19 @@ void loop() {
     err*= 3.281;  //convert error to feet
     SerialLog();
     bar_show_error(err);  //display error on light bar
+
+    display.clearDisplay();
+    display.setTextSize(4);
+    while(millis()-gps_timer<200){
+      terminal_count=drop_time-millis();
+      Serial.println("TIMR,"+String(float(terminal_count/1000)));
+      display.clearDisplay();
+      display.setCursor(0,0);
+      display.print(float(terminal_count/1000), 3);
+      display.display();
+      if(terminal_count<=0) 
+        setState_drop();
+    }
     display.setTextSize(1);
   }
 
@@ -347,8 +350,10 @@ void loop() {
     SerialLog();
     display.clearDisplay();
     display.setCursor(0,0);
-    display.setTextSize(2);
+    display.setTextSize(4);
     display.print("DROP");
+    display.display();
+    
   }
 
   if(state==5){
@@ -413,42 +418,45 @@ void setState_drop(){
   analogWrite(11, 256);
   lightBar(0xff, 0xff);
 
-  //get plane coordinates in decimal degrees
-  plane_lat=(int)(GPS.latitude/100);
-  plane_lat+=fmod(GPS.latitude, 100)/60;
-  plane_lon=(int)(GPS.longitude/100);
-  plane_lon+=fmod(GPS.longitude, 100)/60;
-  if(GPS.lon == 'W')
-    plane_lon = -plane_lon;
+  //serial log drop data
+  if(0){
+    //get plane coordinates in decimal degrees
+    plane_lat=(int)(GPS.latitude/100);
+    plane_lat+=fmod(GPS.latitude, 100)/60;
+    plane_lon=(int)(GPS.longitude/100);
+    plane_lon+=fmod(GPS.longitude, 100)/60;
+    if(GPS.lon == 'W')
+      plane_lon = -plane_lon;
+    
+    //get plane coordinates in local xy system
+    float planeX=mPerLon*(plane_lon-targetLon);
+    float planeY=mPerLat*(plane_lat-targetLat);
   
-  //get plane coordinates in local xy system
-  float planeX=mPerLon*(plane_lon-targetLon);
-  float planeY=mPerLat*(plane_lat-targetLat);
-
-  //update ground speed and agl height with new gps data
-  float final_ground_speed_mph=(GPS.speed*1.151);
-  int final_drop_height=(GPS.altitude*3.28-targetAlt_ft);
-  
-  String logBuffer="DROP,";
-  logBuffer+=String(GPS.hour)+',';
-  logBuffer+=String(GPS.minute)+',';
-  logBuffer+=String(GPS.seconds)+',';
-  logBuffer+=String(state)+',';
-  logBuffer+=String(GPS.fix)+',';
-  logBuffer+=String(GPS.satellites)+',';
-  logBuffer+=String(plane_lat,6)+',';
-  logBuffer+=String(plane_lon,6)+',';
-  logBuffer+=String(drop_height_ft)+',';
-  logBuffer+=String((int)GPS.angle)+',';
-  logBuffer+=String(plane_ground_speed_mph)+',';
-  logBuffer+=String(err)+',';
-  logBuffer+=String(time_to_drop)+',';
-  logBuffer+=String(bearing)+',';
-  logBuffer+=String(planeX-dropX)+',';
-  logBuffer+=String(planeY-dropY)+',';
-  logBuffer+=String(final_ground_speed_mph)+',';
-  logBuffer+=String(final_drop_height);
-  Serial.println(logBuffer);
+    //update ground speed and agl height with new gps data
+    float final_ground_speed_mph=(GPS.speed*1.151);
+    int final_drop_height=(GPS.altitude*3.28-targetAlt_ft);
+    
+    String logBuffer="DROP,";
+    logBuffer+=String(GPS.hour)+',';
+    logBuffer+=String(GPS.minute)+',';
+    logBuffer+=String(GPS.seconds)+',';
+    logBuffer+=String(state)+',';
+    logBuffer+=String(GPS.fix)+',';
+    logBuffer+=String(GPS.satellites)+',';
+    logBuffer+=String(plane_lat,6)+',';
+    logBuffer+=String(plane_lon,6)+',';
+    logBuffer+=String(drop_height_ft)+',';
+    logBuffer+=String((int)GPS.angle)+',';
+    logBuffer+=String(plane_ground_speed_mph)+',';
+    logBuffer+=String(err)+',';
+    logBuffer+=String(time_to_drop)+',';
+    logBuffer+=String(bearing)+',';
+    logBuffer+=String(planeX-dropX)+',';
+    logBuffer+=String(planeY-dropY)+',';
+    logBuffer+=String(final_ground_speed_mph)+',';
+    logBuffer+=String(final_drop_height);
+    Serial.println(logBuffer);
+  }
 }
 
 void setState_abort(){
